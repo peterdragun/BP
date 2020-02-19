@@ -1,0 +1,67 @@
+\chapter{Úvod}
+
+V súčastnosti je čoraz častejšie zabezpečiť si svoj dom alebo byt aj inými technológiami ako sú mechanické zabezpečenie. To je často jednoduché prekonať a odradí len časť potencionálnych zlodejov. Rozšírením pre tento systém môže byť napríklad domáce zabezpečovacie zariadenie alebo presnejšie elektornický zabezpečovací systém. Vďaka tomuto systému je možné identifikovať prítomnosť zlodeja aj po prekonaní mechanických systémov. Takéto zariadenia sú stále dostupnejšie a inteligentnejšie. Pri každom príchode a odchode z domu je však nutné tento systém zapnúť, respektíve vypnúť. To môže byť často otravné. Nutnosť stále zadávať kód a zároveň nezabudnúť toto zariadenie aktivovať. Preto som sa rozhodol zamyslieť sa nad otázkou: Čo ak by zariadenie dokázalo detekovať prítomnosť majiteľa pri priblíženi k objektu a detekovať jeho odchod?
+
+Cieľom práce je vytvoriť zabezpečovacie zariadenie, ktoré pomocou Bluetooth dokáže detekovať prítomnosť majiteľa~-~jeho telefónu, hodiniek a podobne. Použitie Bluetoth je vhodné hlavne vďaka množstvu zariadení, ktoré ho podporujú.
+Súčasťou práce bude zároveň aj vytvoriť mobilnú aplákaciu, ktorá bude slúžiť na nastavenie systému a jeho správu. Podporovať by mala najrozšírenejšie mobilné operačné systémy ako Android a iOS.
+
+\chapter{Zabezpečovacie zariadenia}
+
+Vo všeobecnosti sa medzi k zabezpečovacej technike radí viacero systémov zabezpečovania. Patria sem napríklad mechanické zábranné systémy, elektronické zabezpečovacie systémy (EZS), elektronická požiarna signalizácia, systémy priemyselnej televízie (CCTV) a IP kamerové systémy. V tejto práci sa ďalej zameriam na elektornické zabezpečovacie systémy, ich využitie v domoch a bytoch.
+
+\section{Elektronické zabezpečovacie systémy}
+
+Elektornický zabezpečovací systém je poplachový systém pre detekciu a indikáciu prítomnosti, vstupu alebo pokusu o vstup narušiteľa do stráženého objektu. (Krecek) 
+
+\subsection{Ústredňa EZS}
+
+Je zariadenie určené k príjmu a vyhodnocovaniu výstupných elektrických signálov čidiel alebo tiesňových hlásičov a k vytvoreniu signálu o narušení. V prípade drôtových ústrední slúži zároveň aj ako zdroj napájania pre senzory. Medzi jej dalšie funkcie patrí diagnostika systému a uvedenie systému do stavu stráženia alebo do stavu pokoja.
+
+Ústredne je možné rozdeliť do štyroch základných skupín:
+\begin{itemize}
+    \item \textbf{slučkové} - pre každú poplachovú slučku má vlastný obvod, tie sú tvorené najčastejšie sériovým zapojením čidiel. Zmena odporu na slučke detekuje aktiváciu čidla alebo sabotáž na slučke. Systém má pomerne rozsiahlu kabelovú sieť.
+    \item \textbf{s priamou adresáciou čidiel} - funguje na princípe komunikácie na dátovej zbernici.Ústredňa generuje adresy jednotlivých čidiel a príjma odozvy. Kabelová sieť je minimálna. Ústredňa dokáže identifikovať čidlo, ktoré spôsobilo poplach.
+    \item \textbf{zmiešaného typu} - pracuje princípom dátovej komunikácie s koncentrátorom. Ten je pripojený na samotné čidla pomocou slučiek.
+    \item \textbf{s bezdrôtovým prenosom signálu od čidiel} - ide o najnovší typ ústrední. Najčastejšie pracujú v pásme 433~MHz s výkonom okolo 10~mW. Vlastný dosah vo voľnom prostredí je 100~-~200~m. Čidla sú napájané z batérie.
+    Podľa druhu komunikácie medzi ústredňou a čidlami môže tieto systémy ďalej rozdeliť na:
+    \begin{itemize}
+        \item \textit{s jednosmernou komunikáciou} - jednoduhšie systémy, v čidle sa nachádza vysielač a v ústredni prijímač. Najčastejšie pracujú pomocou systému pravidelnej kontroly visielaním kontrolných telegramov. Vďaka tejto kontrole dokáže ústredňa zistiť poruchu či poškodenie čidla. Problémom týchto systémov je, že v prípade zaznamenania pohybu odosielajú poplachovú správu aj v prípade, že sa systém nachádua v stave odstražené, to zbytočne vyčerpáva energiu zdroja. To je spôsobené tým, že čidlá nemajú informáciu o stave systému. Zároveň sú náchylnejšie na rušenie signálu, pretože kmitočet a modulácia sú nemenné.
+        \item \textit{s obojsmernou komunikáciou} - každý prvom systému je vybavený vysielačom aj prijímačom. Výhodou oproti systémom s jednosmernou komunikáciou je, že systémy v pokojovom stave nevysielajú, pri zapínaní systému si ústredňa overí stav prvkov, pri rušení je možné automatické preladenie na voľný kanál.
+    \end{itemize}
+\end{itemize}
+
+V súčasnosti medzi najpoužívanejšie patria bezdrôtové systémy. Výhodou je hlavne jednoduchá inštalácia, ľahké rozšírenie systému o ďalšie senzory, flexibilita systému napríklad pri zmene rozostavenia nábytku a podobne. Tento spôsob komunikácie však prináša aj mnoho problémov, ktoré je potrebné riešiť. Jednou z nevýhod je napríklad nebezpečie rušenia komunikácie. To môže viesť k vzniku falošného poplachu, či strate spojenia. Samozrejmým požiadavkom je aj kódovanie komunikácie medzi prvkami systému. To znemožnuje skreslenie prenosu a zabraňuje neoprávnenému preniknutiu do systému.
+
+\subsection{Senzory}
+
+\subsubsection{PIR}
+
+\subsubsection{Magnetický kontakt}
+
+Tvorí ho vždy dvojica dielov - jazýčkový kontak a permanentný magnet.
+
+\subsection{Ovládacie a indikačné zariadenia}
+
+Ovládacie prvky slúžia na uvedenie systému do stavu stráženia alebo do stavu pokoja. Zároveň slúžia aj na zadávanie užívateľských kódov pre ovládanie systému, odstavenie poplachu, základnú správu systému.
+\begin{itemize}
+    \item \textbf{blokovací zámok} - kombinuje mechanické zabezpečenie vstupných dverí s ovládaním EZS. Pri odomknutí dverí sa systém automaticky uvedie do stavu odstražené. Zároveň pri zamykaní sa systém uvedie do stavu zabezpečené. Zámok je pritom možné uzamknúť len ak je EZS v normálnom stave. Použitie je prirodzené a a jednoduché. Ide o jeden z najnákladejších spôsobov ovládania systému.
+    \item \textbf{spínací zámok} - podobný blokovaciemu zámku, neobsahuje systém blokovania uzamknutia dverí v prípade poruchy či chyby obsluhy (napríklad otvorené okno)
+    \item \textbf{kódové klávesnice} - je nutné aby elektronika klávesnice bola umiestnená v strážených priestoroch. Prináša nevýhodu, že užívateľ si musí zapamätať kód. Ten je však potrebné pravidelne meniť.
+    \item \textbf{ovládanie kartou}
+\end{itemize}
+
+Indikačné prvky informujú o stave systému napríklad pomocou LED diódy alebo pomocou akustickej sidnalizácie, prípadne ich kombináciou. Medzi najbežnejšie hlásenia patria:
+\begin{itemize}
+    \item stav pokoja/stráženia
+    \item uvádzanie do stavu stráženia
+    \item hlásenie poruchy
+    \item poplach
+\end{itemize}
+
+\chapter{Bluetooth Low Energy}
+
+\chapter{ESP32}
+
+\chapter{Návrh prototypu}
+
+\chapter{Vlastnotsti systému a možné rozšírenia}
