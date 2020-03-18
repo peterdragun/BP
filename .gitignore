@@ -1,2 +1,2 @@
-idf/restful_server/build
+idf/*/build
 idf/restful_server/front/web-demo/node_modules

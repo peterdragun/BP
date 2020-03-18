@@ -1,33 +1,33 @@
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
+// #include <stdbool.h>
+// #include <stdint.h>
+// #include <stdio.h>
 #include <string.h>
 
 #include "cJSON.h"
-#include "driver/gpio.h"
+// #include "driver/gpio.h"
 #include "esp_bt.h"
-#include "esp_bt_defs.h"
+// #include "esp_bt_defs.h"
 #include "esp_bt_main.h"
-#include "esp_event.h"
+// #include "esp_event.h"
 #include "esp_gap_ble_api.h"
 #include "esp_gatt_common_api.h"
-#include "esp_gatt_defs.h"
+// #include "esp_gatt_defs.h"
 #include "esp_gattc_api.h"
 #include "esp_gatts_api.h"
-#include "esp_log.h"
-#include "esp_netif.h"
-#include "esp_spiffs.h"
-#include "esp_system.h"
+// #include "esp_log.h"
+// #include "esp_netif.h"
+// #include "esp_spiffs.h"
+// #include "esp_system.h"
 #include "esp_vfs_fat.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
+// #include "freertos/FreeRTOS.h"
+// #include "freertos/event_groups.h"
 #include "lwip/apps/netbiosns.h"
 #include "mdns.h"
-#include "nvs.h"
+// #include "nvs.h"
 #include "nvs_flash.h"
 #include "protocol_examples_common.h"
-#include "sdkconfig.h"
-#include "sdmmc_cmd.h"
+// #include "sdkconfig.h"
+// #include "sdmmc_cmd.h"
 
 #define GATTS_SERVICE_UUID_TEST_A   0x00FF
 #define GATTS_CHAR_UUID_TEST_A      0xFF01
@@ -57,7 +57,7 @@
 #define NOTIFY_ENABLE               0x0001
 #define INDICATE_ENABLE             0x0002
 #define NOTIFY_INDICATE_DISABLE     0x0000
-#define GATTS_ADV_NAME              "ESP_GATTS_DEMO"
+#define GATTS_ADV_NAME              "ESP_main_unit"
 
 typedef struct {
     uint8_t                 *prepare_buf;
@@ -954,6 +954,7 @@ static void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                  param->connect.remote_bda[0], param->connect.remote_bda[1], param->connect.remote_bda[2],
                  param->connect.remote_bda[3], param->connect.remote_bda[4], param->connect.remote_bda[5]);
                  gatts_profile_tab[GATTS_PROFILE_B_APP_ID].conn_id = param->connect.conn_id;
+        esp_ble_gap_start_advertising(&adv_params);
         break;
     case ESP_GATTS_CONF_EVT:
         ESP_LOGI(COEX_TAG, "ESP_GATTS_CONF_EVT status %d attr_handle %d\n", param->conf.status, param->conf.handle);
@@ -1174,6 +1175,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                  param->connect.remote_bda[0], param->connect.remote_bda[1], param->connect.remote_bda[2],
                  param->connect.remote_bda[3], param->connect.remote_bda[4], param->connect.remote_bda[5]);
         gatts_profile_tab[GATTS_PROFILE_A_APP_ID].conn_id = param->connect.conn_id;
+        esp_ble_gap_start_advertising(&adv_params);
         break;
     }
     case ESP_GATTS_DISCONNECT_EVT:
