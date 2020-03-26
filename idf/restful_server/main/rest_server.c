@@ -98,15 +98,6 @@ static esp_err_t list_device_get_handler(httpd_req_t *req){
     return ESP_OK;
 }
 
-void remove_spaces(char* s) {
-    const char* d = s;
-    do {
-        while (*d == ' ') {
-            ++d;
-        }
-        *s++ = *d++;
-    } while (*d++);
-}
 
 static esp_err_t remove_device_post_handler(httpd_req_t *req){
     int total_len = req->content_len;
@@ -130,7 +121,6 @@ static esp_err_t remove_device_post_handler(httpd_req_t *req){
     buf[total_len] = '\0';
     cJSON *root = cJSON_Parse(buf);
     char* address_str = cJSON_GetObjectItem(root, "address")->valuestring;
-    // remove_spaces(address_str);
     esp_bd_addr_t address_hex;
     char str[3] = "\0\0\0";
     ESP_LOGI(REST_TAG, "address to be removed: %s", address_str);
@@ -175,6 +165,7 @@ static esp_err_t add_device_post_handler(httpd_req_t *req)
     ESP_LOGI(REST_TAG, "Connecting to: name = %s, characteristic = %s, gatt = %s", name, characteristic, gatt);
 
     // TODO connect to device
+    // esp_ble_gap_update_whitelist(true, "address", BLE_WL_ADDR_TYPE_RANDOM);
     cJSON_Delete(root);
     httpd_resp_sendstr(req, "Post control value successfully");
     return ESP_OK;

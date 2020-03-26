@@ -1,33 +1,21 @@
-// #include <stdbool.h>
-// #include <stdint.h>
-// #include <stdio.h>
 #include <string.h>
 
 #include "cJSON.h"
-// #include "driver/gpio.h"
 #include "esp_bt.h"
-// #include "esp_bt_defs.h"
 #include "esp_bt_main.h"
-// #include "esp_event.h"
 #include "esp_gap_ble_api.h"
 #include "esp_gatt_common_api.h"
-// #include "esp_gatt_defs.h"
 #include "esp_gattc_api.h"
 #include "esp_gatts_api.h"
-// #include "esp_log.h"
-// #include "esp_netif.h"
-// #include "esp_spiffs.h"
-// #include "esp_system.h"
 #include "esp_vfs_fat.h"
-// #include "freertos/FreeRTOS.h"
-// #include "freertos/event_groups.h"
 #include "lwip/apps/netbiosns.h"
 #include "mdns.h"
-// #include "nvs.h"
 #include "nvs_flash.h"
 #include "protocol_examples_common.h"
-// #include "sdkconfig.h"
-// #include "sdmmc_cmd.h"
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 
 #define GATTS_SERVICE_UUID_TEST_A   0x00FF
 #define GATTS_CHAR_UUID_TEST_A      0xFF01
@@ -59,6 +47,108 @@
 #define NOTIFY_INDICATE_DISABLE     0x0000
 #define GATTS_ADV_NAME              "ESP_main_unit"
 
+#define GPIO_COL_0 12
+#define GPIO_COL_1 13
+#define GPIO_COL_2 14
+#define GPIO_OUTPUT_PIN_SEL ((1ULL<<GPIO_COL_0) | (1ULL<<GPIO_COL_1) | (1ULL<<GPIO_COL_2) | (1ULL<<16))
+
+#define GPIO_ROW_0 27
+#define GPIO_ROW_1 26
+#define GPIO_ROW_2 25
+#define GPIO_ROW_3 33
+#define GPIO_INPUT_PIN_SEL ((1ULL<<GPIO_ROW_0) | (1ULL<<GPIO_ROW_1) | (1ULL<<GPIO_ROW_2) | (1ULL<<GPIO_ROW_3))
+
+int col = 0;
+char entered_code[20] = {0};
+char expected_code[20] = "123456";
+
+void add_char_to_code(char c){
+    int entered_code_len = strlen(entered_code);
+    if (entered_code_len >= 19){
+        memset(entered_code, 0, sizeof(entered_code));
+        entered_code[0] = c;
+    }else{
+        entered_code[entered_code_len] = c;
+    }
+}
+
+void compare_codes(){
+    if ((entered_code[0] == '*') && (strlen(entered_code) == 1)){
+        ets_printf("Alarm activated\n");
+        // set alarm
+    }else if (!strcmp(expected_code, entered_code)){
+        ets_printf("Alarm deactivated\n");
+        // turn off alarm
+    }else{
+        ets_printf("Wrong code!!!\n");
+    }
+    memset(entered_code, 0, sizeof(entered_code));
+}
+
+void hadle_keypad_task(void *arg)
+{
+    int row[4];
+    char c = '\0';
+    while(1){
+        row[0] = gpio_get_level(GPIO_ROW_0);
+        row[1] = gpio_get_level(GPIO_ROW_1);
+        row[2] = gpio_get_level(GPIO_ROW_2);
+        row[3] = gpio_get_level(GPIO_ROW_3);
+        switch (col){
+        case 0:
+            if (row[0] == 1){
+                c = '*';
+            }else if (row[1] == 1){
+                c = '7';
+            }else if (row[2] == 1){
+                c = '4';
+            }else if (row[3] == 1){
+                c = '1';
+            }
+            gpio_set_level(GPIO_COL_0, 1);
+            gpio_set_level(GPIO_COL_1, 0);
+            gpio_set_level(GPIO_COL_2, 0);
+            col++;
+            break;
+        case 1:
+            if (row[0] == 1){
+                c = '0';
+            }else if (row[1] == 1){
+                c = '8';
+            }else if (row[2] == 1){
+                c = '5';
+            }else if (row[3] == 1){
+                c = '2';
+            }
+            gpio_set_level(GPIO_COL_0, 0);
+            gpio_set_level(GPIO_COL_1, 1);
+            gpio_set_level(GPIO_COL_2, 0);
+            col++;
+            break;
+        case 2:
+            if (row[0] == 1){
+                compare_codes();
+            }else if (row[1] == 1){
+                c = '9';
+            }else if (row[2] == 1){
+                c = '6';
+            }else if (row[3] == 1){
+                c = '3';
+            }
+            gpio_set_level(GPIO_COL_0, 0);
+            gpio_set_level(GPIO_COL_1, 0);
+            gpio_set_level(GPIO_COL_2, 1);
+            col = 0;
+            break;
+        }
+        if (c != '\0'){
+            add_char_to_code(c);
+            c = 0;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1000/portTICK_PERIOD_MS));
+    }
+}
+
 typedef struct {
     uint8_t                 *prepare_buf;
     int                      prepare_len;
@@ -85,7 +175,7 @@ static esp_bt_uuid_t remote_filter_service_uuid = {
 
 static bool connect = false;
 static bool get_service = false;
-static const char remote_device_name[] = "ESP_BLE_SECURITY";
+static const char remote_device_name[] = "Mi Band 3";
 
 static esp_ble_scan_params_t ble_scan_params = {
     .scan_type              = BLE_SCAN_TYPE_ACTIVE,
@@ -196,7 +286,7 @@ static esp_ble_adv_params_t adv_params = {
     .adv_type           = ADV_TYPE_IND,
     .own_addr_type      = BLE_ADDR_TYPE_PUBLIC,
     .channel_map        = ADV_CHNL_ALL,
-    .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
+    .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY, // ADV_FILTER_ALLOW_SCAN_WLST_CON_WLST
 };
 
 /* One gatt-based profile one app_id and one gatts_if, this array will store the gatts_if returned by ESP_GATTS_REG_EVT */
@@ -313,112 +403,6 @@ static void initialise_mdns(void)
 
     ESP_ERROR_CHECK(mdns_service_add("ESP32-WebServer", "_http", "_tcp", 80, serviceTxtData,
                                      sizeof(serviceTxtData) / sizeof(serviceTxtData[0])));
-}
-
-void app_main(void)
-{
-    ESP_ERROR_CHECK(nvs_flash_init());
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    initialise_mdns();
-    netbiosns_init();
-    netbiosns_set_name(CONFIG_EXAMPLE_MDNS_HOST_NAME);
-
-    // init rest server
-    ESP_ERROR_CHECK(example_connect());
-    ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
-
-    // init BLE
-    esp_err_t ret;
-    ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
-
-    esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-    ret = esp_bt_controller_init(&bt_cfg);
-    if (ret) {
-        ESP_LOGE(GATTC_TAG, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(ret));
-        return;
-    }
-
-    ret = esp_bt_controller_enable(ESP_BT_MODE_BLE);
-    if (ret) {
-        ESP_LOGE(GATTC_TAG, "%s enable controller failed: %s\n", __func__, esp_err_to_name(ret));
-        return;
-    }
-
-    ret = esp_bluedroid_init();
-    if (ret) {
-        ESP_LOGE(GATTC_TAG, "%s init bluetooth failed: %s\n", __func__, esp_err_to_name(ret));
-        return;
-    }
-
-    ret = esp_bluedroid_enable();
-    if (ret) {
-        ESP_LOGE(GATTC_TAG, "%s enable bluetooth failed: %s\n", __func__, esp_err_to_name(ret));
-        return;
-    }
-
-    // register the  callback function to the gap module
-    ret = esp_ble_gap_register_callback(esp_gap_cb);
-    if (ret){
-        ESP_LOGE(GATTC_TAG, "%s gap register error, error code = %x\n", __func__, ret);
-        return;
-    }
-
-    // gatts register
-    ret = esp_ble_gatts_register_callback(gatts_event_handler);
-    if (ret) {
-        ESP_LOGE(COEX_TAG, "gatts register error, error code = %x", ret);
-        return;
-    }
-
-    ret = esp_ble_gatts_app_register(GATTS_PROFILE_A_APP_ID);
-    if (ret) {
-        ESP_LOGE(COEX_TAG, "gatts app register error, error code = %x", ret);
-        return;
-    }
-
-    ret = esp_ble_gatts_app_register(GATTS_PROFILE_B_APP_ID);
-    if (ret) {
-        ESP_LOGE(COEX_TAG, "gatts app register error, error code = %x", ret);
-        return;
-    }
-
-    // gattc register
-    //register the callback function to the gattc module
-    ret = esp_ble_gattc_register_callback(esp_gattc_cb);
-    if(ret){
-        ESP_LOGE(GATTC_TAG, "%s gattc register error, error code = %x\n", __func__, ret);
-        return;
-    }
-
-    ret = esp_ble_gattc_app_register(PROFILE_A_APP_ID);
-    if (ret){
-        ESP_LOGE(GATTC_TAG, "%s gattc app register error, error code = %x\n", __func__, ret);
-    }
-
-    ret = esp_ble_gatt_set_local_mtu(200);
-    if (ret){
-        ESP_LOGE(GATTC_TAG, "set local  MTU failed, error code = %x", ret);
-    }
-
-    /* set the security iocap & auth_req & key size & init key response key parameters to the stack*/
-    esp_ble_auth_req_t auth_req = ESP_LE_AUTH_REQ_SC_MITM_BOND;     //bonding with peer device after authentication
-    esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE;           //set the IO capability to No output No input
-    uint8_t key_size = 16;      //the key size should be 7~16 bytes
-    uint8_t init_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
-    uint8_t rsp_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
-    uint8_t oob_support = ESP_BLE_OOB_DISABLE;
-    esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE, &auth_req, sizeof(uint8_t));
-    esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE, &iocap, sizeof(uint8_t));
-    esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE, &key_size, sizeof(uint8_t));
-    esp_ble_gap_set_security_param(ESP_BLE_SM_OOB_SUPPORT, &oob_support, sizeof(uint8_t));
-    /* If your BLE device act as a Slave, the init_key means you hope which types of key of the master should distribute to you,
-    and the response key means which key you can distribute to the Master;
-    If your BLE device act as a master, the response key means you hope which types of key of the slave should distribute to you,
-    and the init key means which key you can distribute to the slave. */
-    esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key, sizeof(uint8_t));
-    esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &rsp_key, sizeof(uint8_t));
-    ESP_LOGI("app-main", "inicialization end");
 }
 
 static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param)
@@ -758,6 +742,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             ESP_LOGI(GATTC_TAG, "Searched Adv Data Len %d, Scan Response Len %d", scan_result->scan_rst.adv_data_len, scan_result->scan_rst.scan_rsp_len);
             adv_name = esp_ble_resolve_adv_data(scan_result->scan_rst.ble_adv,
                                                 ESP_BLE_AD_TYPE_NAME_CMPL, &adv_name_len);
+            adv_name[adv_name_len] = '\0';
             char address[20];
             uint8_t *a = scan_result->scan_rst.bda;
             sprintf(address, "%02x %02x %02x %02x %02x %02x", a[0], a[1], a[2], a[3], a[4], a[5]);
@@ -954,6 +939,7 @@ static void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                  param->connect.remote_bda[0], param->connect.remote_bda[1], param->connect.remote_bda[2],
                  param->connect.remote_bda[3], param->connect.remote_bda[4], param->connect.remote_bda[5]);
                  gatts_profile_tab[GATTS_PROFILE_B_APP_ID].conn_id = param->connect.conn_id;
+        esp_ble_set_encryption(param->connect.remote_bda, ESP_BLE_SEC_ENCRYPT_MITM);
         esp_ble_gap_start_advertising(&adv_params);
         break;
     case ESP_GATTS_CONF_EVT:
@@ -1175,6 +1161,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                  param->connect.remote_bda[0], param->connect.remote_bda[1], param->connect.remote_bda[2],
                  param->connect.remote_bda[3], param->connect.remote_bda[4], param->connect.remote_bda[5]);
         gatts_profile_tab[GATTS_PROFILE_A_APP_ID].conn_id = param->connect.conn_id;
+        esp_ble_set_encryption(param->connect.remote_bda, ESP_BLE_SEC_ENCRYPT_MITM);
         esp_ble_gap_start_advertising(&adv_params);
         break;
     }
@@ -1221,4 +1208,132 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
             }
         }
     } while (0);
+}
+
+void app_main(void)
+{
+    ESP_ERROR_CHECK(nvs_flash_init());
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    initialise_mdns();
+    netbiosns_init();
+    netbiosns_set_name(CONFIG_EXAMPLE_MDNS_HOST_NAME);
+
+    // init rest server
+    ESP_ERROR_CHECK(example_connect());
+    ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
+
+    // init BLE
+    esp_err_t ret;
+    ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
+
+    esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+    ret = esp_bt_controller_init(&bt_cfg);
+    if (ret) {
+        ESP_LOGE(GATTC_TAG, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    ret = esp_bt_controller_enable(ESP_BT_MODE_BLE);
+    if (ret) {
+        ESP_LOGE(GATTC_TAG, "%s enable controller failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    ret = esp_bluedroid_init();
+    if (ret) {
+        ESP_LOGE(GATTC_TAG, "%s init bluetooth failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    ret = esp_bluedroid_enable();
+    if (ret) {
+        ESP_LOGE(GATTC_TAG, "%s enable bluetooth failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    // register the  callback function to the gap module
+    ret = esp_ble_gap_register_callback(esp_gap_cb);
+    if (ret){
+        ESP_LOGE(GATTC_TAG, "%s gap register error, error code = %x\n", __func__, ret);
+        return;
+    }
+
+
+    // gattc register
+    //register the callback function to the gattc module
+    ret = esp_ble_gattc_register_callback(esp_gattc_cb);
+    if(ret){
+        ESP_LOGE(GATTC_TAG, "%s gattc register error, error code = %x\n", __func__, ret);
+        return;
+    }
+
+    ret = esp_ble_gattc_app_register(PROFILE_A_APP_ID);
+    if (ret){
+        ESP_LOGE(GATTC_TAG, "%s gattc app register error, error code = %x\n", __func__, ret);
+    }
+
+    ret = esp_ble_gatt_set_local_mtu(200);
+    if (ret){
+        ESP_LOGE(GATTC_TAG, "set local  MTU failed, error code = %x", ret);
+    }
+
+    /* set the security iocap & auth_req & key size & init key response key parameters to the stack*/
+    esp_ble_auth_req_t auth_req = ESP_LE_AUTH_REQ_SC_MITM_BOND;     //bonding with peer device after authentication
+    esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE;           //set the IO capability to No output No input
+    uint8_t key_size = 16;      //the key size should be 7~16 bytes
+    uint8_t init_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
+    uint8_t rsp_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
+    uint8_t oob_support = ESP_BLE_OOB_DISABLE;
+    uint32_t passkey = 123456;
+    uint8_t auth_option = ESP_BLE_ONLY_ACCEPT_SPECIFIED_AUTH_DISABLE;
+    esp_ble_gap_set_security_param(ESP_BLE_SM_SET_STATIC_PASSKEY, &passkey, sizeof(uint32_t));
+    esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE, &auth_req, sizeof(uint8_t));
+    esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE, &iocap, sizeof(uint8_t));
+    esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE, &key_size, sizeof(uint8_t));
+    esp_ble_gap_set_security_param(ESP_BLE_SM_ONLY_ACCEPT_SPECIFIED_SEC_AUTH, &auth_option, sizeof(uint8_t));
+    esp_ble_gap_set_security_param(ESP_BLE_SM_OOB_SUPPORT, &oob_support, sizeof(uint8_t));
+    /* If your BLE device act as a Slave, the init_key means you hope which types of key of the master should distribute to you,
+    and the response key means which key you can distribute to the Master;
+    If your BLE device act as a master, the response key means you hope which types of key of the slave should distribute to you,
+    and the init key means which key you can distribute to the slave. */
+    esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key, sizeof(uint8_t));
+    esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &rsp_key, sizeof(uint8_t));
+
+    // gatts register
+    ret = esp_ble_gatts_register_callback(gatts_event_handler);
+    if (ret) {
+        ESP_LOGE(COEX_TAG, "gatts register error, error code = %x", ret);
+        return;
+    }
+
+    ret = esp_ble_gatts_app_register(GATTS_PROFILE_A_APP_ID);
+    if (ret) {
+        ESP_LOGE(COEX_TAG, "gatts app register error, error code = %x", ret);
+        return;
+    }
+
+    ret = esp_ble_gatts_app_register(GATTS_PROFILE_B_APP_ID);
+    if (ret) {
+        ESP_LOGE(COEX_TAG, "gatts app register error, error code = %x", ret);
+        return;
+    }
+
+    gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
+    io_conf.pull_down_en = 0;
+    io_conf.pull_up_en = 0;
+    gpio_config(&io_conf);
+
+    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_conf.pin_bit_mask = GPIO_INPUT_PIN_SEL;
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.pull_down_en = 0;
+    io_conf.pull_up_en = 0;
+    gpio_config(&io_conf);
+
+    xTaskCreate(hadle_keypad_task, "hadle_keypad_task", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+    ESP_LOGI("app-main", "inicialization end");
 }
