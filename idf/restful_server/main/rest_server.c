@@ -1,12 +1,9 @@
-// #include <string.h>
-// #include <fcntl.h>
-// #include <ctype.h>
+#include <string.h>
 #include "esp_http_server.h"
-// #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_vfs.h"
 #include "cJSON.h"
-
+#include "nvs.h"
 #include "esp_gap_ble_api.h"
 
 static const char *REST_TAG = "esp-rest";
@@ -20,7 +17,6 @@ static const char *REST_TAG = "esp-rest";
         }                                                                              \
     } while (0)
 
-#define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
 #define SCRATCH_BUFSIZE (10240)
 
 typedef struct rest_server_context {
@@ -28,7 +24,7 @@ typedef struct rest_server_context {
     char scratch[SCRATCH_BUFSIZE];
 } rest_server_context_t;
 
-#define CHECK_FILE_EXTENSION(filename, ext) (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
+extern char expected_code[21];
 
 /* Send HTTP response with the contents of the requested file */
 static esp_err_t rest_common_get_handler(httpd_req_t *req)
@@ -98,7 +94,6 @@ static esp_err_t list_device_get_handler(httpd_req_t *req){
     return ESP_OK;
 }
 
-
 static esp_err_t remove_device_post_handler(httpd_req_t *req){
     int total_len = req->content_len;
     int cur_len = 0;
@@ -167,8 +162,81 @@ static esp_err_t add_device_post_handler(httpd_req_t *req)
     // TODO connect to device
     // esp_ble_gap_update_whitelist(true, "address", BLE_WL_ADDR_TYPE_RANDOM);
     cJSON_Delete(root);
-    httpd_resp_sendstr(req, "Post control value successfully");
+    httpd_resp_sendstr(req, "Device was successfully added to whitelist");
     return ESP_OK;
+}
+
+static esp_err_t change_code_post_handler(httpd_req_t *req){
+    int total_len = req->content_len;
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        /* Respond with 500 Internal Server Error */
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        return ESP_FAIL;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+            return ESP_FAIL;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+
+    cJSON *root = cJSON_Parse(buf);
+    char* code = cJSON_GetObjectItem(root, "code")->valuestring;
+    char* new_code = cJSON_GetObjectItem(root, "new_code")->valuestring;
+
+    if (strcmp(code, expected_code)){
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Code does not match.");
+        return ESP_FAIL;
+    }
+
+    if (strlen(code) > 18){
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "New code is too long. Max 20 numbers.");
+        return ESP_FAIL;
+    }
+    
+    char * ptr;
+    int64_t code_int = strtol(new_code, &ptr, 10);
+    if(*ptr != '\0'){
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "New code have to contain only numbers.");
+        return ESP_FAIL;
+    }
+
+    // store code do non-volatile memory
+    nvs_handle_t nvs_handle;
+    esp_err_t ret = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+    if (ret != ESP_OK) {
+        cJSON_Delete(root);
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(ret));
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Error while opening nvs.");
+        return ESP_FAIL;
+    } else {
+        ret = nvs_set_i64(nvs_handle, "code", code_int);
+        if(ret == ESP_OK){
+            ret = nvs_commit(nvs_handle);
+        }
+        nvs_close(nvs_handle);
+    }
+
+    cJSON_Delete(root);
+    if(ret != ESP_OK){
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Error while writing to nvs.");
+        return ESP_FAIL;
+    }else{
+        // store code also to variable
+        strncpy(expected_code, new_code, 19);
+        httpd_resp_sendstr(req, "Code was successfully changed");
+        return ESP_OK;
+    }
 }
 
 esp_err_t start_rest_server(const char *base_path)
@@ -226,6 +294,14 @@ esp_err_t start_rest_server(const char *base_path)
         .user_ctx = rest_context
     };
     httpd_register_uri_handler(server, &ble_list_device_get_uri);
+
+    httpd_uri_t change_code_get_uri = {
+        .uri = "/code/change",
+        .method = HTTP_POST,
+        .handler = change_code_post_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &change_code_get_uri);
 
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {
