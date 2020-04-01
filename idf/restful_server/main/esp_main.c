@@ -40,6 +40,7 @@
 #define GATTC_PROFILE_C_APP_ID      0
 
 #define BLE_SECURITY_SYSTEM         "BLE_SECURITY_SYSTEM"
+#define SECURITY_SYSTEM             "SECURITY_SYSTEM"
 #define REMOTE_SERVICE_UUID         ESP_GATT_UUID_HEART_RATE_SVC
 #define REMOTE_NOTIFY_UUID          0x2A37
 #define REMOTE_NOTIFY_CHAR_UUID     0xFF01
@@ -73,6 +74,9 @@
 #define LEDC_TEST_FADE_TIME         (3000)
 #define TASK_WAIT                   150
 
+enum state_enum {Armed, Disarmed, Activating, Alarm, Setup} security = Disarmed;
+enum state_enum *security_state = &security;
+
 ledc_channel_config_t ledc_channel[LEDC_TEST_CH_NUM] = {
     {
         .channel    = LEDC_HS_CH0_CHANNEL,
@@ -94,6 +98,41 @@ ledc_channel_config_t ledc_channel[LEDC_TEST_CH_NUM] = {
 
 TaskHandle_t xHandle_alarm;
 
+void activate_security(){
+    int ch;
+    for (size_t sec = 0; sec < 30; sec++){
+        ESP_LOGI(SECURITY_SYSTEM, "System will be activated in: %d seconds.", 30 - sec);
+        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
+            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_TEST_DUTY);
+            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+        }
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+
+        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
+            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
+            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+        }
+        vTaskDelay(100);
+    }
+    ESP_LOGI(SECURITY_SYSTEM, "Armed");
+    *security_state = Armed;
+
+    for (size_t i = 0; i < 3; i++){
+        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
+            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_TEST_DUTY);
+            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+        }
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+
+        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
+            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
+            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+        }
+        vTaskDelay(50);
+    }
+    vTaskDelete(NULL);
+}
+
 void alarm_task(){
     int ch;
     while (1) {
@@ -114,6 +153,8 @@ void alarm_task(){
 int col = 0;
 char entered_code[19] = {0};
 char expected_code[19] = "123456";
+int wrong_attempts = 0;
+int *wrong_attempts_ptr = &wrong_attempts;
 
 void add_char_to_code(char c){
     int entered_code_len = strlen(entered_code);
@@ -127,18 +168,41 @@ void add_char_to_code(char c){
 
 void compare_codes(){
     if ((entered_code[0] == '*') && (strlen(entered_code) == 1)){
-        ets_printf("Alarm activated\n");
-        // set alarm - wait few seconds and set to secured mode
+        ESP_LOGI(SECURITY_SYSTEM, "System activating");
+        if (*security_state != Disarmed && *security_state != Setup){
+            ESP_LOGW(SECURITY_SYSTEM, "Security system is already activated!");
+            return;
+        }
+        *security_state = Activating;
+        xTaskCreate(activate_security, "activate_security", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+        // TODO start scanning for near devices
     }else if (!strcmp(expected_code, entered_code)){
-        ets_printf("Alarm deactivated\n");
-        // turn off alarm
-        // vTaskSuspend(xHandle_alarm);
+        ESP_LOGI(SECURITY_SYSTEM, "System disarmed");
+        *wrong_attempts_ptr = 0;
+        vTaskDelete(xHandle_alarm);
+        // make sure buzzer stopped beeping
+        for (int ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
+            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
+            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+        }
+        *security_state = Disarmed;
     }else{
-        ets_printf("Wrong code!!!\n");
+        ESP_LOGW(SECURITY_SYSTEM, "Wrong code!!!");
+        if(*security_state == Armed){
+            (*wrong_attempts_ptr)++;
+            if (*wrong_attempts_ptr >= 3){
+                ESP_LOGI(SECURITY_SYSTEM, "Alarm");
+                *security_state = Alarm;
+                *wrong_attempts_ptr = 0;
+                xTaskCreate(alarm_task, "alarm_task", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_alarm);
+            }
+        }
     }
     memset(entered_code, 0, sizeof(entered_code));
 }
 
+// TODO run task just in armed, alarm, activating mode, also disarmed for alarm arming
+// also start scanning in same modes?
 void hadle_keypad_task(void *arg)
 {
     int row[4];
@@ -196,12 +260,11 @@ void hadle_keypad_task(void *arg)
             break;
         }
         if (c != '\0'){
-            printf("%c", c);
-            fflush(stdout);
+            ets_printf("%c", c);
             add_char_to_code(c);
             c = 0;
         }
-        vTaskDelay(pdMS_TO_TICKS(1000/portTICK_PERIOD_MS));
+        vTaskDelay(pdMS_TO_TICKS(500/portTICK_PERIOD_MS));
     }
 }
 
@@ -1077,18 +1140,6 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
         if (set_dev_name_ret) {
             ESP_LOGE(BLE_SECURITY_SYSTEM, "set device name failed, error code = %x\n", set_dev_name_ret);
         }
-#ifdef CONFIG_SET_RAW_ADV_DATA
-        esp_err_t raw_adv_ret = esp_ble_gap_config_adv_data_raw(raw_adv_data, sizeof(raw_adv_data));
-        if (raw_adv_ret) {
-            ESP_LOGE(BLE_SECURITY_SYSTEM, "config raw adv data failed, error code = %x \n", raw_adv_ret);
-        }
-        adv_config_done |= adv_config_flag;
-        esp_err_t raw_scan_ret = esp_ble_gap_config_scan_rsp_data_raw(raw_scan_rsp_data, sizeof(raw_scan_rsp_data));
-        if (raw_scan_ret) {
-            ESP_LOGE(BLE_SECURITY_SYSTEM, "config raw scan rsp data failed, error code = %x\n", raw_scan_ret);
-        }
-        adv_config_done |= scan_rsp_config_flag;
-#else
         //config adv data
         esp_err_t ret = esp_ble_gap_config_adv_data(&adv_data);
         if (ret) {
@@ -1102,7 +1153,6 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
         }
         adv_config_done |= scan_rsp_config_flag;
 
-#endif
         esp_ble_gatts_create_service(gatts_if, &gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_id, GATTS_NUM_HANDLE_TEST_A);
         break;
     case ESP_GATTS_READ_EVT: {
@@ -1268,6 +1318,8 @@ void app_main(void)
     esp_err_t ret;
     nvs_handle_t nvs_handle;
 
+    *security_state = Disarmed;
+
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -1407,7 +1459,7 @@ void app_main(void)
     io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
     io_conf.pin_bit_mask = GPIO_INPUT_PIN_SEL;
     io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pull_down_en = 0;
+    io_conf.pull_down_en = 1;
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
 
@@ -1430,9 +1482,6 @@ void app_main(void)
         ledc_channel_config(&ledc_channel[ch]);
     }
     ledc_fade_func_install(0);
-
-    // task for alarm indication
-    // xTaskCreate(alarm_task, "alarm_task", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_alarm);
 
     ESP_LOGI("app-main", "inicialization end");
 }
