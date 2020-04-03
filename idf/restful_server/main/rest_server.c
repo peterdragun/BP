@@ -1,40 +1,20 @@
-#include <string.h>
-#include "esp_http_server.h"
-#include "esp_log.h"
-#include "esp_vfs.h"
-#include "cJSON.h"
-#include "nvs.h"
-#include "esp_gap_ble_api.h"
+#include "rest_server.h"
 
-static const char *REST_TAG = "esp-rest";
-#define REST_CHECK(a, str, goto_tag, ...)                                              \
-    do                                                                                 \
-    {                                                                                  \
-        if (!(a))                                                                      \
-        {                                                                              \
-            ESP_LOGE(REST_TAG, "%s(%d): " str, __FUNCTION__, __LINE__, ##__VA_ARGS__); \
-            goto goto_tag;                                                             \
-        }                                                                              \
-    } while (0)
-
-#define SCRATCH_BUFSIZE (10240)
-
-typedef struct rest_server_context {
-    char base_path[ESP_VFS_PATH_MAX + 1];
-    char scratch[SCRATCH_BUFSIZE];
-} rest_server_context_t;
-
-extern char expected_code[21];
+extern char expected_code[19];
 
 /* Send HTTP response with the contents of the requested file */
-static esp_err_t rest_common_get_handler(httpd_req_t *req)
-{
+static esp_err_t rest_common_get_handler(httpd_req_t *req){
+    if (*security_state != Disarmed && *security_state != Setup){
+        char * err_msg = "Security system needs to be in setup or disarmed mode for this operation.";
+        ESP_LOGW(SECURITY_SYSTEM, "Security system needs to be in setup or disarmed mode for this operation.");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, err_msg);
+        return ESP_FAIL;
+    }
     return ESP_OK;
 }
 
 /* Simple handler for getting system handler */
-static esp_err_t system_info_get_handler(httpd_req_t *req)
-{
+static esp_err_t system_info_get_handler(httpd_req_t *req){
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
     esp_chip_info_t chip_info;
@@ -48,18 +28,14 @@ static esp_err_t system_info_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-cJSON *json_resp;
-
 /* Simple handler for getting BLE scan results*/
-static esp_err_t ble_scan_get_handler(httpd_req_t *req)
-{
+static esp_err_t ble_scan_get_handler(httpd_req_t *req){
     httpd_resp_set_type(req, "application/json");
     json_resp = cJSON_CreateArray();
     // start scanning for near devices
     ESP_LOGI("rest-ble-scan", "Start scan");
     uint32_t duration = 5; // in seconds
     esp_ble_gap_start_scanning(duration);
-    // cJSON_AddStringToObject(resp, "name", "ahoj");
     sleep(5);
     const char *scan = cJSON_Print(json_resp);
     httpd_resp_sendstr(req, scan);
@@ -100,14 +76,12 @@ static esp_err_t remove_device_post_handler(httpd_req_t *req){
     char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
     int received = 0;
     if (total_len >= SCRATCH_BUFSIZE) {
-        /* Respond with 500 Internal Server Error */
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
         return ESP_FAIL;
     }
     while (cur_len < total_len) {
         received = httpd_req_recv(req, buf + cur_len, total_len);
         if (received <= 0) {
-            /* Respond with 500 Internal Server Error */
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
             return ESP_FAIL;
         }
@@ -130,21 +104,18 @@ static esp_err_t remove_device_post_handler(httpd_req_t *req){
     return ESP_OK;
 }
 
-static esp_err_t add_device_post_handler(httpd_req_t *req)
-{
+static esp_err_t add_device_post_handler(httpd_req_t *req){
     int total_len = req->content_len;
     int cur_len = 0;
     char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
     int received = 0;
     if (total_len >= SCRATCH_BUFSIZE) {
-        /* Respond with 500 Internal Server Error */
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
         return ESP_FAIL;
     }
     while (cur_len < total_len) {
         received = httpd_req_recv(req, buf + cur_len, total_len);
         if (received <= 0) {
-            /* Respond with 500 Internal Server Error */
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
             return ESP_FAIL;
         }
@@ -153,6 +124,7 @@ static esp_err_t add_device_post_handler(httpd_req_t *req)
     buf[total_len] = '\0';
 
     cJSON *root = cJSON_Parse(buf);
+
     // TODO hadle not presented object names
     char* name = cJSON_GetObjectItem(root, "name")->valuestring;
     char* characteristic = cJSON_GetObjectItem(root, "char")->valuestring;
@@ -160,6 +132,8 @@ static esp_err_t add_device_post_handler(httpd_req_t *req)
     ESP_LOGI(REST_TAG, "Connecting to: name = %s, characteristic = %s, gatt = %s", name, characteristic, gatt);
 
     // TODO connect to device
+    // start new scan?
+    // maybe esp_ble_gattc_open() ? 
     // esp_ble_gap_update_whitelist(true, "address", BLE_WL_ADDR_TYPE_RANDOM);
     cJSON_Delete(root);
     httpd_resp_sendstr(req, "Device was successfully added to whitelist");
@@ -172,14 +146,12 @@ static esp_err_t change_code_post_handler(httpd_req_t *req){
     char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
     int received = 0;
     if (total_len >= SCRATCH_BUFSIZE) {
-        /* Respond with 500 Internal Server Error */
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
         return ESP_FAIL;
     }
     while (cur_len < total_len) {
         received = httpd_req_recv(req, buf + cur_len, total_len);
         if (received <= 0) {
-            /* Respond with 500 Internal Server Error */
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
             return ESP_FAIL;
         }
@@ -220,28 +192,39 @@ static esp_err_t change_code_post_handler(httpd_req_t *req){
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Error while opening nvs.");
         return ESP_FAIL;
     } else {
+        ESP_LOGI(REST_TAG, "Writing code to NVS memory... ");
         ret = nvs_set_i64(nvs_handle, "code", code_int);
         if(ret == ESP_OK){
             ret = nvs_commit(nvs_handle);
         }
         nvs_close(nvs_handle);
+        ESP_LOGI(REST_TAG, "Done");
     }
 
-    cJSON_Delete(root);
     if(ret != ESP_OK){
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Error while writing to nvs.");
-        return ESP_FAIL;
     }else{
         // store code also to variable
         strncpy(expected_code, new_code, 19);
         httpd_resp_sendstr(req, "Code was successfully changed");
-        return ESP_OK;
+        ESP_LOGI(REST_TAG, "Code was successfully changed to %s", expected_code);
     }
+    cJSON_Delete(root);
+    return ret;
 }
 
-esp_err_t start_rest_server(const char *base_path)
-{
-    REST_CHECK(base_path, "wrong base path", err);
+static esp_err_t system_arm_get_handler(httpd_req_t *req){
+    esp_err_t ret = arm_system();
+    if (ret == ESP_FAIL){
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "System failed to activate.");
+    }else{
+        httpd_resp_sendstr(req, "System will be activated in 30 seconds");
+    }
+    return ret;
+}
+
+esp_err_t start_rest_server(const char *base_path){
+    REST_CHECK(base_path, "Wrong base path", err);
     rest_server_context_t *rest_context = calloc(1, sizeof(rest_server_context_t));
     REST_CHECK(rest_context, "No memory for rest context", err);
     strlcpy(rest_context->base_path, base_path, sizeof(rest_context->base_path));
@@ -295,13 +278,21 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &ble_list_device_get_uri);
 
-    httpd_uri_t change_code_get_uri = {
+    httpd_uri_t change_code_post_uri = {
         .uri = "/code/change",
         .method = HTTP_POST,
         .handler = change_code_post_handler,
         .user_ctx = rest_context
     };
-    httpd_register_uri_handler(server, &change_code_get_uri);
+    httpd_register_uri_handler(server, &change_code_post_uri);
+
+    httpd_uri_t system_arm_get_uri = {
+        .uri = "/system/arm",
+        .method = HTTP_GET,
+        .handler = system_arm_get_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &system_arm_get_uri);
 
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {

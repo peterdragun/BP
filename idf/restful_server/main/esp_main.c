@@ -1,284 +1,10 @@
-#include <string.h>
-#include <stdio.h>
-
-#include "cJSON.h"
-#include "esp_bt.h"
-#include "esp_bt_main.h"
-#include "esp_gap_ble_api.h"
-#include "esp_gatt_common_api.h"
-#include "esp_gattc_api.h"
-#include "esp_gatts_api.h"
-#include "esp_vfs_fat.h"
-#include "lwip/apps/netbiosns.h"
-#include "mdns.h"
-#include "nvs_flash.h"
-#include "protocol_examples_common.h"
-#include "driver/gpio.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "driver/ledc.h"
-
-// BLE
-#define GATTS_SERVICE_UUID_TEST_A   0x00FF
-#define GATTS_CHAR_UUID_TEST_A      0xFF01
-#define GATTS_NUM_HANDLE_TEST_A     4
-
-#define GATTS_SERVICE_UUID_TEST_B   0x00EE
-#define GATTS_CHAR_UUID_TEST_B      0xEE01
-#define GATTS_NUM_HANDLE_TEST_B     4
-
-#define GATTS_DEMO_CHAR_VAL_LEN_MAX 0x40
-#define PREPARE_BUF_MAX_SIZE        1024
-
-#define adv_config_flag             (1 << 0)
-#define scan_rsp_config_flag        (1 << 1)
-
-#define GATTS_PROFILE_NUM           2
-#define GATTS_PROFILE_A_APP_ID      0
-#define GATTS_PROFILE_B_APP_ID      1
-#define GATTC_PROFILE_NUM           1
-#define GATTC_PROFILE_C_APP_ID      0
-
-#define BLE_SECURITY_SYSTEM         "BLE_SECURITY_SYSTEM"
-#define SECURITY_SYSTEM             "SECURITY_SYSTEM"
-#define REMOTE_SERVICE_UUID         ESP_GATT_UUID_HEART_RATE_SVC
-#define REMOTE_NOTIFY_UUID          0x2A37
-#define REMOTE_NOTIFY_CHAR_UUID     0xFF01
-#define NOTIFY_ENABLE               0x0001
-#define INDICATE_ENABLE             0x0002
-#define NOTIFY_INDICATE_DISABLE     0x0000
-#define GATTS_ADV_NAME              "ESP_main_unit"
-
-// Keypad rows and cols
-#define GPIO_COL_0 12
-#define GPIO_COL_1 13
-#define GPIO_COL_2 14
-#define GPIO_OUTPUT_PIN_SEL ((1ULL<<GPIO_COL_0) | (1ULL<<GPIO_COL_1) | (1ULL<<GPIO_COL_2) | (1ULL<<16))
-
-#define GPIO_ROW_0 27
-#define GPIO_ROW_1 26
-#define GPIO_ROW_2 25
-#define GPIO_ROW_3 33
-#define GPIO_INPUT_PIN_SEL ((1ULL<<GPIO_ROW_0) | (1ULL<<GPIO_ROW_1) | (1ULL<<GPIO_ROW_2) | (1ULL<<GPIO_ROW_3))
-
-// Buzzer and LED alarm indications
-#define LEDC_HS_TIMER               LEDC_TIMER_0
-#define LEDC_HS_MODE                LEDC_HIGH_SPEED_MODE
-#define LEDC_HS_CH0_BUZZER          (18)
-#define LEDC_HS_CH0_CHANNEL         LEDC_CHANNEL_0
-#define LEDC_HS_CH1_GPIO            (19)
-#define LEDC_HS_CH1_CHANNEL         LEDC_CHANNEL_1
-
-#define LEDC_TEST_CH_NUM            (4)
-#define LEDC_TEST_DUTY              (2000)
-#define LEDC_TEST_FADE_TIME         (3000)
-#define TASK_WAIT                   150
-
-enum state_enum {Armed, Disarmed, Activating, Alarm, Setup} security = Disarmed;
-enum state_enum *security_state = &security;
-
-ledc_channel_config_t ledc_channel[LEDC_TEST_CH_NUM] = {
-    {
-        .channel    = LEDC_HS_CH0_CHANNEL,
-        .duty       = 0,
-        .gpio_num   = LEDC_HS_CH0_BUZZER,
-        .speed_mode = LEDC_HS_MODE,
-        .hpoint     = 0,
-        .timer_sel  = LEDC_HS_TIMER
-    },
-    {
-        .channel    = LEDC_HS_CH1_CHANNEL,
-        .duty       = 0,
-        .gpio_num   = LEDC_HS_CH1_GPIO,
-        .speed_mode = LEDC_HS_MODE,
-        .hpoint     = 0,
-        .timer_sel  = LEDC_HS_TIMER
-    },
-};
-
-TaskHandle_t xHandle_alarm;
-
-void activate_security(){
-    int ch;
-    for (size_t sec = 0; sec < 30; sec++){
-        ESP_LOGI(SECURITY_SYSTEM, "System will be activated in: %d seconds.", 30 - sec);
-        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
-            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_TEST_DUTY);
-            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
-        }
-        vTaskDelay(200 / portTICK_PERIOD_MS);
-
-        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
-            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
-            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
-        }
-        vTaskDelay(100);
-    }
-    ESP_LOGI(SECURITY_SYSTEM, "Armed");
-    *security_state = Armed;
-
-    for (size_t i = 0; i < 3; i++){
-        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
-            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_TEST_DUTY);
-            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
-        }
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-
-        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
-            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
-            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
-        }
-        vTaskDelay(50);
-    }
-    vTaskDelete(NULL);
-}
-
-void alarm_task(){
-    int ch;
-    while (1) {
-        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
-            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_TEST_DUTY);
-            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
-        }
-        vTaskDelay(TASK_WAIT / portTICK_PERIOD_MS);
-
-        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
-            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
-            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
-        }
-        vTaskDelay(TASK_WAIT / portTICK_PERIOD_MS);
-    }
-}
-
-int col = 0;
-char entered_code[19] = {0};
-char expected_code[19] = "123456";
-int wrong_attempts = 0;
-int *wrong_attempts_ptr = &wrong_attempts;
-
-void add_char_to_code(char c){
-    int entered_code_len = strlen(entered_code);
-    if (entered_code_len >= 18){
-        memset(entered_code, 0, sizeof(entered_code));
-        entered_code[0] = c;
-    }else{
-        entered_code[entered_code_len] = c;
-    }
-}
-
-void compare_codes(){
-    if ((entered_code[0] == '*') && (strlen(entered_code) == 1)){
-        ESP_LOGI(SECURITY_SYSTEM, "System activating");
-        if (*security_state != Disarmed && *security_state != Setup){
-            ESP_LOGW(SECURITY_SYSTEM, "Security system is already activated!");
-            return;
-        }
-        *security_state = Activating;
-        xTaskCreate(activate_security, "activate_security", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
-        // TODO start scanning for near devices
-    }else if (!strcmp(expected_code, entered_code)){
-        ESP_LOGI(SECURITY_SYSTEM, "System disarmed");
-        *wrong_attempts_ptr = 0;
-        vTaskDelete(xHandle_alarm);
-        // make sure buzzer stopped beeping
-        for (int ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
-            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
-            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
-        }
-        *security_state = Disarmed;
-    }else{
-        ESP_LOGW(SECURITY_SYSTEM, "Wrong code!!!");
-        if(*security_state == Armed){
-            (*wrong_attempts_ptr)++;
-            if (*wrong_attempts_ptr >= 3){
-                ESP_LOGI(SECURITY_SYSTEM, "Alarm");
-                *security_state = Alarm;
-                *wrong_attempts_ptr = 0;
-                xTaskCreate(alarm_task, "alarm_task", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_alarm);
-            }
-        }
-    }
-    memset(entered_code, 0, sizeof(entered_code));
-}
-
-// TODO run task just in armed, alarm, activating mode, also disarmed for alarm arming
-// also start scanning in same modes?
-void hadle_keypad_task(void *arg)
-{
-    int row[4];
-    char c = '\0';
-    while(1){
-        row[0] = gpio_get_level(GPIO_ROW_0);
-        row[1] = gpio_get_level(GPIO_ROW_1);
-        row[2] = gpio_get_level(GPIO_ROW_2);
-        row[3] = gpio_get_level(GPIO_ROW_3);
-        switch (col){
-        case 0:
-            if (row[0] == 1){
-                c = '*';
-            }else if (row[1] == 1){
-                c = '7';
-            }else if (row[2] == 1){
-                c = '4';
-            }else if (row[3] == 1){
-                c = '1';
-            }
-            gpio_set_level(GPIO_COL_0, 1);
-            gpio_set_level(GPIO_COL_1, 0);
-            gpio_set_level(GPIO_COL_2, 0);
-            col++;
-            break;
-        case 1:
-            if (row[0] == 1){
-                c = '0';
-            }else if (row[1] == 1){
-                c = '8';
-            }else if (row[2] == 1){
-                c = '5';
-            }else if (row[3] == 1){
-                c = '2';
-            }
-            gpio_set_level(GPIO_COL_0, 0);
-            gpio_set_level(GPIO_COL_1, 1);
-            gpio_set_level(GPIO_COL_2, 0);
-            col++;
-            break;
-        case 2:
-            if (row[0] == 1){
-                compare_codes();
-            }else if (row[1] == 1){
-                c = '9';
-            }else if (row[2] == 1){
-                c = '6';
-            }else if (row[3] == 1){
-                c = '3';
-            }
-            gpio_set_level(GPIO_COL_0, 0);
-            gpio_set_level(GPIO_COL_1, 0);
-            gpio_set_level(GPIO_COL_2, 1);
-            col = 0;
-            break;
-        }
-        if (c != '\0'){
-            ets_printf("%c", c);
-            add_char_to_code(c);
-            c = 0;
-        }
-        vTaskDelay(pdMS_TO_TICKS(500/portTICK_PERIOD_MS));
-    }
-}
-
-typedef struct {
-    uint8_t                 *prepare_buf;
-    int                      prepare_len;
-} prepare_type_env_t;
+#include "esp_main.h"
 
 static esp_gattc_char_elem_t *char_elem_result   = NULL;
 static esp_gattc_descr_elem_t *descr_elem_result = NULL;
 
-///Declare static functions
+///Declare functions
 static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param);
-
 static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 static void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 static void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param);
@@ -300,38 +26,6 @@ static esp_ble_scan_params_t ble_scan_params = {
     .scan_interval          = 0x50,
     .scan_window            = 0x30,
     .scan_duplicate         = BLE_SCAN_DUPLICATE_ENABLE
-};
-
-extern cJSON *json_resp;
-
-#define PROFILE_NUM 1
-#define PROFILE_A_APP_ID 0
-#define INVALID_HANDLE   0
-
-struct gatts_profile_inst {
-    esp_gatts_cb_t gatts_cb;
-    uint16_t gatts_if;
-    uint16_t app_id;
-    uint16_t conn_id;
-    uint16_t service_handle;
-    esp_gatt_srvc_id_t service_id;
-    uint16_t char_handle;
-    esp_bt_uuid_t char_uuid;
-    esp_gatt_perm_t perm;
-    esp_gatt_char_prop_t property;
-    uint16_t descr_handle;
-    esp_bt_uuid_t descr_uuid;
-};
-
-struct gattc_profile_inst {
-    esp_gattc_cb_t gattc_cb;
-    uint16_t gattc_if;
-    uint16_t app_id;
-    uint16_t conn_id;
-    uint16_t service_start_handle;
-    uint16_t service_end_handle;
-    uint16_t notify_char_handle;
-    esp_bd_addr_t remote_bda;
 };
 
 /* One gatt-based profile one app_id and one gattc_if, this array will store the gattc_if returned by ESP_GATTS_REG_EVT */
@@ -502,9 +196,6 @@ static char *esp_auth_req_to_str(esp_ble_auth_req_t auth_req)
    return auth_str;
 }
 
-#define MDNS_INSTANCE "esp home web server"
-
-esp_err_t start_rest_server(const char *base_path);
 
 static void initialise_mdns(void)
 {
@@ -868,6 +559,15 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             ESP_LOGI(BLE_SECURITY_SYSTEM, "Searched Device Name Len %d", adv_name_len);
             esp_log_buffer_char(BLE_SECURITY_SYSTEM, adv_name, adv_name_len);
             ESP_LOGI(BLE_SECURITY_SYSTEM, "\n");
+
+            // TODO hadle scan from Setup mode and in Armed mode
+            if (*security_state == Setup){
+                // if scan, do nothing 
+                // if connect connect to device
+            }else if (*security_state == Armed || *security_state == Alarm){
+                // try to find device from bonded devices
+            }
+
             if (adv_name != NULL) {
                 if (strlen(remote_device_name) == adv_name_len && strncmp((char *)adv_name, remote_device_name, adv_name_len) == 0) {
                     ESP_LOGI(BLE_SECURITY_SYSTEM, "searched device %s\n", remote_device_name);
@@ -1313,8 +1013,7 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
     } while (0);
 }
 
-void app_main(void)
-{
+void app_main(){
     esp_err_t ret;
     nvs_handle_t nvs_handle;
 
