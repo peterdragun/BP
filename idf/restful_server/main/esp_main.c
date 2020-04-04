@@ -17,7 +17,7 @@ static esp_bt_uuid_t remote_filter_service_uuid = {
 
 static bool connect = false;
 static bool get_service = false;
-static const char remote_device_name[] = "Mi Band 3";
+// static const char remote_device_name[] = "Mi Band 3";
 
 static esp_ble_scan_params_t ble_scan_params = {
     .scan_type              = BLE_SCAN_TYPE_ACTIVE,
@@ -539,10 +539,12 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             ESP_LOGI(BLE_SECURITY_SYSTEM, "Searched Adv Data Len %d, Scan Response Len %d", scan_result->scan_rst.adv_data_len, scan_result->scan_rst.scan_rsp_len);
             adv_name = esp_ble_resolve_adv_data(scan_result->scan_rst.ble_adv,
                                                 ESP_BLE_AD_TYPE_NAME_CMPL, &adv_name_len);
-            adv_name[adv_name_len] = '\0';
+            if (adv_name_len > 1){
+                adv_name[adv_name_len] = '\0';
+            }
             char address[20];
             uint8_t *a = scan_result->scan_rst.bda;
-            sprintf(address, "%02x %02x %02x %02x %02x %02x", a[0], a[1], a[2], a[3], a[4], a[5]);
+            sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", a[0], a[1], a[2], a[3], a[4], a[5]);
             cJSON_AddStringToObject(json_obj, "address", (const char*)address);
             cJSON_AddStringToObject(json_obj, "name", (const char*)adv_name);
             cJSON_AddItemToArray(json_resp, json_obj);
@@ -558,17 +560,17 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                 // try to find device from bonded devices
             }
 
-            if (adv_name != NULL) {
-                if (strlen(remote_device_name) == adv_name_len && strncmp((char *)adv_name, remote_device_name, adv_name_len) == 0) {
-                    ESP_LOGI(BLE_SECURITY_SYSTEM, "searched device %s\n", remote_device_name);
-                    if (connect == false) {
-                        connect = true;
-                        ESP_LOGI(BLE_SECURITY_SYSTEM, "connect to the remote device.");
-                        esp_ble_gap_stop_scanning();
-                        esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, scan_result->scan_rst.bda, scan_result->scan_rst.ble_addr_type, true);
-                    }
-                }
-            }
+            // if (adv_name != NULL) {
+            //     if (strlen(remote_device_name) == adv_name_len && strncmp((char *)adv_name, remote_device_name, adv_name_len) == 0) {
+            //         ESP_LOGI(BLE_SECURITY_SYSTEM, "searched device %s\n", remote_device_name);
+            //         if (connect == false) {
+            //             connect = true;
+            //             ESP_LOGI(BLE_SECURITY_SYSTEM, "connect to the remote device.");
+            //             esp_ble_gap_stop_scanning();
+            //             esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, scan_result->scan_rst.bda, scan_result->scan_rst.ble_addr_type, true);
+            //         }
+            //     }
+            // }
             break;
         case ESP_GAP_SEARCH_INQ_CMPL_EVT:
             break;
@@ -1167,7 +1169,7 @@ void app_main(){
     ledc_timer.timer_num = LEDC_HS_TIMER;
     ledc_timer_config(&ledc_timer);
 
-    for (int ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
+    for (int ch = 0; ch < LEDC_CH_NUM; ch++) {
         ledc_channel_config(&ledc_channel[ch]);
     }
     ledc_fade_func_install(0);

@@ -3,9 +3,9 @@
 state_enum_t security = Disarmed;
 state_enum_t *security_state = &security;
 
-char expected_code[19] = "123456";
+char expected_code[19] = "123456"; //Default alarm code
 
-ledc_channel_config_t ledc_channel[LEDC_TEST_CH_NUM] = {
+ledc_channel_config_t ledc_channel[LEDC_CH_NUM] = {
     {
         .channel    = LEDC_HS_CH0_CHANNEL,
         .duty       = 0,
@@ -17,7 +17,15 @@ ledc_channel_config_t ledc_channel[LEDC_TEST_CH_NUM] = {
     {
         .channel    = LEDC_HS_CH1_CHANNEL,
         .duty       = 0,
-        .gpio_num   = LEDC_HS_CH1_GPIO,
+        .gpio_num   = LEDC_HS_CH1_LED_R,
+        .speed_mode = LEDC_HS_MODE,
+        .hpoint     = 0,
+        .timer_sel  = LEDC_HS_TIMER
+    },
+    {
+        .channel    = LEDC_HS_CH2_CHANNEL,
+        .duty       = 0,
+        .gpio_num   = LEDC_HS_CH2_LED_Y,
         .speed_mode = LEDC_HS_MODE,
         .hpoint     = 0,
         .timer_sel  = LEDC_HS_TIMER
@@ -25,19 +33,20 @@ ledc_channel_config_t ledc_channel[LEDC_TEST_CH_NUM] = {
 };
 
 TaskHandle_t xHandle_alarm;
+TaskHandle_t xHandle_activate;
 
 void activate_security(){
     int ch;
     // beep every second
     for (size_t sec = 0; sec < 30; sec++){
         ESP_LOGI(SECURITY_SYSTEM, "System will be activated in: %d seconds.", 30 - sec);
-        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
-            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_TEST_DUTY);
+        for (ch = 0; ch < LEDC_CH_NUM; ch+=2) {
+            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_DUTY);
             ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
         }
         vTaskDelay(200 / portTICK_PERIOD_MS);
 
-        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
+        for (ch = 0; ch < LEDC_CH_NUM; ch+=2) {
             ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
             ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
         }
@@ -46,13 +55,13 @@ void activate_security(){
 
     // 3 quick beeps
     for (size_t i = 0; i < 3; i++){
-        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
-            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_TEST_DUTY);
+        for (ch = 0; ch < LEDC_CH_NUM; ch+=2) {
+            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_DUTY);
             ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
         }
         vTaskDelay(100 / portTICK_PERIOD_MS);
 
-        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
+        for (ch = 0; ch < LEDC_CH_NUM; ch+=2) {
             ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
             ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
         }
@@ -67,13 +76,13 @@ void activate_security(){
 void alarm_task(){
     int ch;
     while (1) {
-        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
-            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_TEST_DUTY);
+        for (ch = 0; ch < LEDC_CH_NUM - 1; ch++) {
+            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_DUTY);
             ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
         }
         vTaskDelay(TASK_WAIT / portTICK_PERIOD_MS);
 
-        for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
+        for (ch = 0; ch < LEDC_CH_NUM - 1; ch++) {
             ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
             ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
         }
@@ -104,7 +113,7 @@ esp_err_t arm_system(){
         return ESP_FAIL;
     }
     *security_state = Activating;
-    xTaskCreate(activate_security, "activate_security", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+    xTaskCreate(activate_security, "activate_security", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_activate);
     return ESP_OK;
 }
 
@@ -116,12 +125,10 @@ void compare_codes(){
         }
     }else if (!strcmp(expected_code, entered_code)){
         if(*security_state == Activating){
-            // vTaskDelete(xHandle_activating);
+            vTaskDelete(xHandle_activate);
         }else if(*security_state == Alarm){
             vTaskDelete(xHandle_alarm);
-        }else if(*security_state == Armed){
-            // Disarm
-        }else{
+        }else if(*security_state != Armed){
             ESP_LOGW(SECURITY_SYSTEM, "Security system is not activated!");
             memset(entered_code, 0, sizeof(entered_code));
             return;
@@ -129,7 +136,7 @@ void compare_codes(){
         ESP_LOGI(SECURITY_SYSTEM, "System disarmed");
         *wrong_attempts_ptr = 0;
         // make sure buzzer stopped beeping
-        for (int ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
+        for (int ch = 0; ch < LEDC_CH_NUM; ch++) {
             ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
             ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
         }

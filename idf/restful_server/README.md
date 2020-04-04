@@ -19,7 +19,8 @@ This designs several APIs to fetch resources as follows:
 | ESP32  | Device  |
 | ------ | ------- |
 | GPIO18 | Buzzer       |
-| GPIO19 | Alarm LED    |
+| GPIO19 | Alarm LED R  |
+| GPIO5  | Alert LED Y  |
 | GPIO12 | Keypad col 0 |
 | GPIO13 | Keypad col 1 |
 | GPIO14 | Keypad col 2 |

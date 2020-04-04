@@ -26,12 +26,14 @@
 #define LEDC_HS_MODE          LEDC_HIGH_SPEED_MODE
 #define LEDC_HS_CH0_BUZZER    18
 #define LEDC_HS_CH0_CHANNEL   LEDC_CHANNEL_0
-#define LEDC_HS_CH1_GPIO      19
+#define LEDC_HS_CH1_LED_R     19
 #define LEDC_HS_CH1_CHANNEL   LEDC_CHANNEL_1
+#define LEDC_HS_CH2_LED_Y     5
+#define LEDC_HS_CH2_CHANNEL   LEDC_CHANNEL_2
 
-#define LEDC_TEST_CH_NUM      4
-#define LEDC_TEST_DUTY        2000
-#define LEDC_TEST_FADE_TIME   3000
+#define LEDC_CH_NUM           3
+#define LEDC_DUTY             2000
+#define LEDC_FADE_TIME        3000
 #define TASK_WAIT             150
 
 #define SECURITY_SYSTEM       "SECURITY_SYSTEM"

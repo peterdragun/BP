@@ -57,7 +57,7 @@
 
 #define MDNS_INSTANCE "esp_home"
 
-extern ledc_channel_config_t ledc_channel[LEDC_TEST_CH_NUM];
+extern ledc_channel_config_t ledc_channel[LEDC_CH_NUM];
 extern char expected_code[19];
 extern state_enum_t *security_state;
 

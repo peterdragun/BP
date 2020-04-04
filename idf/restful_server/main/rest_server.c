@@ -2,8 +2,7 @@
 
 extern char expected_code[19];
 
-/* Send HTTP response with the contents of the requested file */
-static esp_err_t rest_common_get_handler(httpd_req_t *req){
+static esp_err_t check_state(httpd_req_t *req){
     if (*security_state != Disarmed && *security_state != Setup){
         char * err_msg = "Security system needs to be in setup or disarmed mode for this operation.";
         ESP_LOGW(SECURITY_SYSTEM, "Security system needs to be in setup or disarmed mode for this operation.");
@@ -16,6 +15,9 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req){
 /* Simple handler for getting BLE scan results*/
 static esp_err_t ble_scan_get_handler(httpd_req_t *req){
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (check_state(req) != ESP_OK){
+        return ESP_FAIL;
+    }
     httpd_resp_set_type(req, "application/json");
     json_resp = cJSON_CreateArray();
     // start scanning for near devices
@@ -34,6 +36,9 @@ static esp_err_t ble_scan_get_handler(httpd_req_t *req){
 
 static esp_err_t list_device_get_handler(httpd_req_t *req){
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (check_state(req) != ESP_OK){
+        return ESP_FAIL;
+    }
     httpd_resp_set_type(req, "application/json");
     int bond_cnt = esp_ble_get_bond_device_num();
     esp_ble_bond_dev_t list[bond_cnt];
@@ -45,7 +50,7 @@ static esp_err_t list_device_get_handler(httpd_req_t *req){
     cJSON *json_obj;
     for (int i = 0; i < bond_cnt; i++){
         a = list[i].bd_addr;
-        sprintf(address, "%02x %02x %02x %02x %02x %02x", a[0], a[1], a[2], a[3], a[4], a[5]);
+        sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", a[0], a[1], a[2], a[3], a[4], a[5]);
         json_obj = cJSON_CreateObject();
         cJSON_AddStringToObject(json_obj, "address", (const char*)address);
         cJSON_AddItemToArray(json_list, json_obj);
@@ -59,11 +64,14 @@ static esp_err_t list_device_get_handler(httpd_req_t *req){
 }
 
 static esp_err_t remove_device_post_handler(httpd_req_t *req){
-    int total_len = req->content_len;
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (check_state(req) != ESP_OK){
+        return ESP_FAIL;
+    }
     int cur_len = 0;
     char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
     int received = 0;
-    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    int total_len = req->content_len;
     if (total_len >= SCRATCH_BUFSIZE) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
         return ESP_FAIL;
@@ -95,11 +103,14 @@ static esp_err_t remove_device_post_handler(httpd_req_t *req){
 }
 
 static esp_err_t add_device_post_handler(httpd_req_t *req){
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (check_state(req) != ESP_OK){
+        return ESP_FAIL;
+    }
     int total_len = req->content_len;
     int cur_len = 0;
     char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
     int received = 0;
-    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     ets_printf("som tu\n\n\n\n\n\n");
     if (total_len >= SCRATCH_BUFSIZE) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
@@ -133,11 +144,14 @@ static esp_err_t add_device_post_handler(httpd_req_t *req){
 }
 
 static esp_err_t change_code_post_handler(httpd_req_t *req){
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (check_state(req) != ESP_OK){
+        return ESP_FAIL;
+    }
     int total_len = req->content_len;
     int cur_len = 0;
     char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
     int received = 0;
-    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     if (total_len >= SCRATCH_BUFSIZE) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
         return ESP_FAIL;
@@ -208,6 +222,9 @@ static esp_err_t change_code_post_handler(httpd_req_t *req){
 
 static esp_err_t system_arm_get_handler(httpd_req_t *req){
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (check_state(req) != ESP_OK){
+        return ESP_FAIL;
+    }
     esp_err_t ret = arm_system();
     if (ret == ESP_FAIL){
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "System failed to activate.");
@@ -276,14 +293,6 @@ esp_err_t start_rest_server(){
     };
     httpd_register_uri_handler(server, &change_code_post_uri);
 
-    httpd_uri_t default_options_uri = {
-        .uri = "/*",
-        .method = HTTP_OPTIONS,
-        .handler = default_options_handler,
-        .user_ctx = rest_context
-    };
-    httpd_register_uri_handler(server, &default_options_uri);
-
     httpd_uri_t system_arm_get_uri = {
         .uri = "/system/arm",
         .method = HTTP_GET,
@@ -292,14 +301,14 @@ esp_err_t start_rest_server(){
     };
     httpd_register_uri_handler(server, &system_arm_get_uri);
 
-    /* URI handler for getting web server files */
-    httpd_uri_t common_get_uri = {
+    // Common hadler for options
+    httpd_uri_t default_options_uri = {
         .uri = "/*",
-        .method = HTTP_GET,
-        .handler = rest_common_get_handler,
+        .method = HTTP_OPTIONS,
+        .handler = default_options_handler,
         .user_ctx = rest_context
     };
-    httpd_register_uri_handler(server, &common_get_uri);
+    httpd_register_uri_handler(server, &default_options_uri);
 
     return ESP_OK;
 err_start:
