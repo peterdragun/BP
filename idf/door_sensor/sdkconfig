@@ -115,10 +115,12 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
-# Example Configuration
+# Sensor configuration
 #
 # CONFIG_EXAMPLE_DUMP_ADV_DATA_AND_SCAN_RESP is not set
-# end of Example Configuration
+# CONFIG_DOOR_SENSOR is not set
+CONFIG_PIR_SENSOR=y
+# end of Sensor configuration
 
 #
 # Compiler options

@@ -3,7 +3,7 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := door_sensor
+PROJECT_NAME := sensor_unit
 
 COMPONENT_ADD_INCLUDEDIRS := components/include
 

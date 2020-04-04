@@ -13,6 +13,12 @@
 #include "esp_bt_main.h"
 #include "esp_gatt_common_api.h"
 
+#ifdef DOOR_SENSOR
+    #define WAKE_UP ESP_EXT1_WAKEUP_ALL_LOW
+#else
+    #define WAKE_UP ESP_EXT1_WAKEUP_ANY_HIGH
+#endif
+
 static RTC_DATA_ATTR struct timeval sleep_enter_time;
 
 #define GATTC_TAG             "BLE_SENSOR"
@@ -607,7 +613,7 @@ void app_main(void)
     const uint64_t ext_wakeup_pin_mask = 1ULL << ext_wakeup_pin;
 
     printf("Enabling EXT1 wakeup on pins GPIO%d\n", ext_wakeup_pin);
-    esp_sleep_enable_ext1_wakeup(ext_wakeup_pin_mask, ESP_EXT1_WAKEUP_ALL_LOW);
+    esp_sleep_enable_ext1_wakeup(ext_wakeup_pin_mask, WAKE_UP);
 
 
 #if CONFIG_IDF_TARGET_ESP32
