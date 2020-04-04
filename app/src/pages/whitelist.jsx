@@ -5,7 +5,6 @@ import {
   List,
   Button,
   Card,
-  CardContent,
   CardFooter,
   CardHeader,
   Link,
@@ -72,7 +71,7 @@ export default class extends React.Component {
   handleClick (address) {
     axios({
       method: 'post',
-      url: 'http://192.168.1.45/ble/address/remove',
+      url: 'http://esp-home.local/ble/device/remove',
       data: {
         address: address,
       }

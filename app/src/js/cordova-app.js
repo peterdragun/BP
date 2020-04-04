@@ -54,12 +54,6 @@ var cordovaApp = {
         e.preventDefault();
         return false;
       }
-      if ($('.login-screen.modal-in').length) {
-        f7.loginScreen.close('.login-screen.modal-in');
-        e.preventDefault();
-        return false;
-      }
-
       if($('.searchbar-enabled').length){
         f7.searchbar.disable();
         e.preventDefault();

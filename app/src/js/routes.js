@@ -3,9 +3,11 @@ import HomePage from '../pages/home.jsx';
 import AboutPage from '../pages/about.jsx';
 import ScanPage from '../pages/scan.jsx';
 import WhitelistPage from '../pages/whitelist.jsx';
+import ChangeCodePage from '../pages/change-code.jsx';
 
 import DynamicRoutePage from '../pages/dynamic-route.jsx';
 import NotFoundPage from '../pages/404.jsx';
+import axios from 'axios'
 
 var routes = [
   {
@@ -34,6 +36,12 @@ var routes = [
       // Simulate Ajax Request
       setTimeout(function () {
         // We got user data from request
+        axios({
+          method: 'get',
+          url: 'http://esp-home.local/ble/scan',
+          data: {}
+        }).then(response => console.log(response), error => console.log(error) );
+        
         var scan = {
           result: [
             {
@@ -116,6 +124,10 @@ var routes = [
       }, 1000);
     },
 
+  },
+  {
+    path: '/change-code/',
+    component: ChangeCodePage,
   },
   {
     path: '/dynamic-route/blog/:blogId/post/:postId/',

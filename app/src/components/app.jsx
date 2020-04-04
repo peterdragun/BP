@@ -54,7 +54,8 @@ export default class extends React.Component {
               <List>
                 <ListItem link="/scan/" view=".view-main" panelClose title="Scan"/>
                 <ListItem link="/whitelist/" view=".view-main" panelClose title="Whitelist"/>
-              </List>
+                <ListItem link="/change-code/" view=".view-main" panelClose title="Change alarm code"/>
+               </List>
               <BlockTitle>About application</BlockTitle>
               <List>
                 <ListItem link="/about/" view=".view-main" panelClose title="About"/>

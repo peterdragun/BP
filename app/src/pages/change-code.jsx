@@ -3,15 +3,13 @@ import {
   Page,
   Navbar,
   List,
-  Button,
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
   Link,
+  Button,
   Popup,
   NavRight,
   Block,
+  ListItem,
+  ListInput
 } from 'framework7-react';
 import axios from 'axios'
 
@@ -20,28 +18,44 @@ export default class extends React.Component {
     super(props);
 
     this.state = {
-      scan: props.f7route.context.scan,
       succPopupOpened: false,
       errorPopupOpened: false,
+      code: "",
+      new_code: "",
     };
   }
   render() {
-    const scan = this.state.scan;
     return (
       <Page>
-        <Navbar title="Scan" backLink="Back" />
-        <List>
-          {scan.result.map((device, index) => (
-            <Card key={index}>
-              <CardHeader>{`Address: ${device.address}`}</CardHeader>
-              <CardContent>{`Name: ${device.name}`}</CardContent>
-              <CardFooter>
-                <Link></Link>
-                <Button fill raised onClick={() => this.handleClick(device.address)}>Add</Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </List>
+        <Navbar title="Alarm Code" backLink="Back"/>
+        <Block>
+          <List>
+            <ListInput
+              type="number"
+              label="Current code"
+              required
+              info="Default code is 123456"
+              min="0"
+              max="9223372036854775807" // 64bit max val
+              placeholder="eg. 123456"
+              value={this.state.code}
+              onChange={(event) => this.setState({code: event.target.value})}
+            />
+            <ListInput
+              type="number"
+              label="New code"
+              required
+              min="0"
+              max="9223372036854775807" // 64bit max val
+              placeholder="eg. 1234"
+              value={this.state.new_code}
+              onChange={(event) => this.setState({new_code: event.target.value})}
+            />
+            <ListItem>
+              <Button fill onClick={() => this.handleClick()}>Change</Button>
+            </ListItem>
+          </List>
+        </Block>
         <Popup opened={this.state.succPopupOpened} onPopupClosed={() => this.setState({succPopupOpened : false})}>
           <Page>
             <Navbar title="Success">
@@ -50,7 +64,7 @@ export default class extends React.Component {
               </NavRight>
             </Navbar>
             <Block>
-              <p>Device was successfully added to whitelist.</p>
+              <p>Alarm code was successfully changed.</p>
             </Block>
           </Page>
         </Popup>
@@ -69,12 +83,13 @@ export default class extends React.Component {
       </Page>
     );
   }
-  handleClick (address) {
+  handleClick () {
     axios({
       method: 'post',
-      url: 'http://esp-home.local/ble/device/add',
+      url: 'http://esp-home.local/code/change',
       data: {
-        address: address,
+        code: this.state.code,
+        new_code: this.state.new_code,
       }
     }).then(response => {this.setState({ succPopupOpened : true })}, error => { console.log(error), this.setState({ errorPopupOpened : true })} );
   }

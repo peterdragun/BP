@@ -9,6 +9,10 @@ import {
   BlockTitle,
   List,
   ListItem,
+  Block,
+  Row,
+  Col,
+  Button,
 } from 'framework7-react';
 
 export default () => (
@@ -22,10 +26,15 @@ export default () => (
       <NavTitleLarge>Home security</NavTitleLarge>
     </Navbar>
 
+    <Block>
+      <Button fill>Activate</Button>
+    </Block>
+
     <BlockTitle>Navigation</BlockTitle>
     <List>
       <ListItem link="/scan/" title="Scan"/>
       <ListItem link="/whitelist/" title="Whitelist"/>
+      <ListItem link="/change-code/" title="Change alarm code"/>
       <ListItem link="/about/" title="About"/>
     </List>
 
