@@ -23,12 +23,13 @@ export default class extends React.Component {
       scan: props.f7route.context.scan,
       succPopupOpened: false,
       errorPopupOpened: false,
+      message: "",
     };
   }
   render() {
     const scan = this.state.scan;
     return (
-      <Page>
+      <Page ptr onPtrRefresh={this.reload.bind(this)}>
         <Navbar title="Scan" backLink="Back" />
         <List>
           {scan.result.map((device, index) => (
@@ -50,7 +51,7 @@ export default class extends React.Component {
               </NavRight>
             </Navbar>
             <Block>
-              <p>Device was successfully added to whitelist.</p>
+              <p>{this.state.message}</p>
             </Block>
           </Page>
         </Popup>
@@ -62,7 +63,7 @@ export default class extends React.Component {
               </NavRight>
             </Navbar>
             <Block>
-              <p>Error occurred.</p>
+              <p>{this.state.message}</p>
             </Block>
           </Page>
         </Popup>
@@ -72,10 +73,43 @@ export default class extends React.Component {
   handleClick (address) {
     axios({
       method: 'post',
-      url: 'http://esp-home.local/ble/device/add',
+      // url: 'http://esp-home.local/ble/device/add',
+      url: 'http://192.168.1.45/ble/device/add',
+      timeout: 3000,
       data: {
         address: address,
       }
-    }).then(response => {this.setState({ succPopupOpened : true })}, error => { console.log(error), this.setState({ errorPopupOpened : true })} );
+    }).then(response => {this.setState({ succPopupOpened : true, message: response.data })},
+    error => {
+      console.log(error);
+      var message = "Timeout"
+      if (error.response){
+        message = error.response.data
+      }
+      this.setState({ errorPopupOpened : true, message: message })
+    });
+  }
+  reload(done){
+    var {scan} = this.state;
+    axios({
+      method: 'get',
+      // url: 'http://esp-home.local/ble/scan',
+      url: 'http://192.168.1.45/ble/scan',
+      timeout: 8000
+    }).then(response => {
+      console.log(response);
+      // var array = removeDuplicates(x => x.address, response.data);
+      scan = {result: response.data};
+      this.setState({scan});
+      done();
+    }, error => {
+      console.log(error);
+      var message = "Timeout"
+      if (error.response){
+        message = error.response.data
+      }
+      this.setState({ errorPopupOpened : true, message: message })
+      done();
+    });
   }
 }

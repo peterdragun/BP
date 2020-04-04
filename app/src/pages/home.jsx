@@ -10,44 +10,87 @@ import {
   List,
   ListItem,
   Block,
-  Row,
-  Col,
   Button,
+  Popup,
+  NavRight
 } from 'framework7-react';
+import axios from 'axios'
 
-export default () => (
-  <Page name="home">
-    {/* Top Navbar */}
-    <Navbar sliding={false} large>
-      <NavLeft>
-        <Link iconIos="f7:menu" iconAurora="f7:menu" iconMd="material:menu" panelOpen="left" />
-      </NavLeft>
-      <NavTitle sliding>Home security</NavTitle>
-      <NavTitleLarge>Home security</NavTitleLarge>
-    </Navbar>
+export default class Home extends React.Component {
+  constructor(props) {
+    super(props);
 
-    <Block>
-      <Button fill>Activate</Button>
-    </Block>
+    this.state = {
+      popupOpened: false,
+      errorPopupOpened: false,
+      message: "",
+    }
+  }
+  render() {
+    return (
+      <Page name="home">
+        {/* Top Navbar */}
+        <Navbar sliding={false} large>
+          <NavLeft>
+            <Link iconIos="f7:menu" iconAurora="f7:menu" iconMd="material:menu" panelOpen="left" />
+          </NavLeft>
+          <NavTitle sliding>Home security</NavTitle>
+          <NavTitleLarge>Home security</NavTitleLarge>
+        </Navbar>
 
-    <BlockTitle>Navigation</BlockTitle>
-    <List>
-      <ListItem link="/scan/" title="Scan"/>
-      <ListItem link="/whitelist/" title="Whitelist"/>
-      <ListItem link="/change-code/" title="Change alarm code"/>
-      <ListItem link="/about/" title="About"/>
-    </List>
+        <Block>
+          <Button fill onClick={() => this.handleClick()}>Activate</Button>
+        </Block>
 
-    <List>
-      <ListItem
-        title="Dynamic (Component) Route"
-        link="/dynamic-route/blog/45/post/125/?foo=bar#about"
-      />
-      <ListItem
-        title="Default Route (404)"
-        link="/load-something-that-doesnt-exist/"
-      />
-    </List>
+        <BlockTitle>Navigation</BlockTitle>
+        <List>
+          <ListItem link="/scan/" title="Scan"/>
+          <ListItem link="/whitelist/" title="Whitelist"/>
+          <ListItem link="/change-code/" title="Change alarm code"/>
+          <ListItem link="/about/" title="About"/>
+        </List>
 
-  </Page>
-);
+        <Popup opened={this.state.succPopupOpened} onPopupClosed={() => this.setState({succPopupOpened : false})}>
+          <Page>
+            <Navbar title="Success">
+              <NavRight>
+                <Link popupClose>Close</Link>
+              </NavRight>
+            </Navbar>
+            <Block>
+              <p>{this.state.message}</p>
+            </Block>
+          </Page>
+        </Popup>
+        <Popup opened={this.state.errorPopupOpened} onPopupClosed={() => this.setState({errorPopupOpened : false})}>
+          <Page>
+            <Navbar title="Error">
+              <NavRight>
+                <Link popupClose>Close</Link>
+              </NavRight>
+            </Navbar>
+            <Block>
+              <p>{this.state.message}</p>
+            </Block>
+          </Page>
+        </Popup>
+      </Page>
+    );
+  }
+  handleClick () {
+    axios({
+      method: 'get',
+      // url: 'http://esp-home.local/system/arm', // wont work on android, pls google
+      url: 'http://192.168.1.45/system/arm',
+      timeout: 3000
+    }).then(response => {this.setState({ succPopupOpened : true, message: response.data })}, 
+    error => {
+      console.log(error);
+      var message = "Timeout"
+      if (error.response){
+        message = error.response.data
+      }
+      this.setState({ errorPopupOpened : true, message: message })
+    });
+  }
+}

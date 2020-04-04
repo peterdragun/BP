@@ -22,6 +22,7 @@ export default class extends React.Component {
       errorPopupOpened: false,
       code: "",
       new_code: "",
+      message: "",
     };
   }
   render() {
@@ -37,7 +38,7 @@ export default class extends React.Component {
               info="Default code is 123456"
               min="0"
               max="9223372036854775807" // 64bit max val
-              placeholder="eg. 123456"
+              placeholder="123456"
               value={this.state.code}
               onChange={(event) => this.setState({code: event.target.value})}
             />
@@ -47,7 +48,7 @@ export default class extends React.Component {
               required
               min="0"
               max="9223372036854775807" // 64bit max val
-              placeholder="eg. 1234"
+              placeholder="1234"
               value={this.state.new_code}
               onChange={(event) => this.setState({new_code: event.target.value})}
             />
@@ -64,7 +65,7 @@ export default class extends React.Component {
               </NavRight>
             </Navbar>
             <Block>
-              <p>Alarm code was successfully changed.</p>
+              <p>{this.state.message}</p>
             </Block>
           </Page>
         </Popup>
@@ -76,7 +77,7 @@ export default class extends React.Component {
               </NavRight>
             </Navbar>
             <Block>
-              <p>Error occurred.</p>
+              <p>{this.state.message}</p>
             </Block>
           </Page>
         </Popup>
@@ -86,11 +87,21 @@ export default class extends React.Component {
   handleClick () {
     axios({
       method: 'post',
-      url: 'http://esp-home.local/code/change',
+      // url: 'http://esp-home.local/code/change',
+      url: 'http://192.168.1.45/code/change',
+      timeout: 3000,
       data: {
         code: this.state.code,
         new_code: this.state.new_code,
       }
-    }).then(response => {this.setState({ succPopupOpened : true })}, error => { console.log(error), this.setState({ errorPopupOpened : true })} );
+    }).then(response => {this.setState({ succPopupOpened : true, message: response.data })}, 
+    error => {
+      console.log(error);
+      var message = "Timeout"
+      if (error.response){
+        message = error.response.data
+      }
+      this.setState({ errorPopupOpened : true, message: message })
+    });
   }
 }

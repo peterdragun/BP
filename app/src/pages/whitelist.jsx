@@ -22,13 +22,14 @@ export default class extends React.Component {
       list: props.f7route.context.list,
       succPopupOpened: false,
       errorPopupOpened: false,
+      message: "",
     };
   }
   render() {
     const list = this.state.list;
     return (
       <Page>
-        <Navbar title="Scan" backLink="Back" />
+        <Navbar title="Whitelist" backLink="Back" />
         <List>
           {list.result.map((device, index) => (
             <Card key={index}>
@@ -36,7 +37,7 @@ export default class extends React.Component {
               {/* <CardContent>{`Name: ${device.name}`}</CardContent> */}
               <CardFooter>
                 <Link></Link>
-                <Button fill raised color="red" onClick={() => this.handleClick(device.address)}>Remove</Button>
+                <Button fill raised color="red" onClick={() => this.handleClick(device.address.replace(/:/g,''))}>Remove</Button>
               </CardFooter>
             </Card>
           ))}
@@ -49,7 +50,7 @@ export default class extends React.Component {
               </NavRight>
             </Navbar>
             <Block>
-              <p>Device was successfully removed from whitelist.</p>
+              <p>{this.state.message}</p>
             </Block>
           </Page>
         </Popup>
@@ -61,7 +62,7 @@ export default class extends React.Component {
               </NavRight>
             </Navbar>
             <Block>
-              <p>Error ocured.</p>
+              <p>{this.state.message}</p>
             </Block>
           </Page>
         </Popup>
@@ -71,10 +72,20 @@ export default class extends React.Component {
   handleClick (address) {
     axios({
       method: 'post',
-      url: 'http://esp-home.local/ble/device/remove',
+      // url: 'http://esp-home.local/ble/device/remove',
+      url: 'http://192.168.1.45/ble/device/remove',
+      timeout: 3000,
       data: {
         address: address,
       }
-    }).then(response => {this.setState({ succPopupOpened : true })}, error => { console.log(error), this.setState({ errorPopupOpened : true })} );
+    }).then(response => {this.setState({ succPopupOpened : true, message: response.data })}, 
+    error => {
+      console.log(error);
+      var message = "Timeout"
+      if (error.response){
+        message = error.response.data
+      }
+      this.setState({ errorPopupOpened : true, message: message })
+    });
   }
 }
