@@ -55,7 +55,7 @@
 #define PROFILE_A_APP_ID            0
 #define INVALID_HANDLE              0
 
-#define MDNS_INSTANCE "esp home web server"
+#define MDNS_INSTANCE "esp_home"
 
 extern ledc_channel_config_t ledc_channel[LEDC_TEST_CH_NUM];
 extern char expected_code[19];

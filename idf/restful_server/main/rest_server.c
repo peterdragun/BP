@@ -13,23 +13,9 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req){
     return ESP_OK;
 }
 
-/* Simple handler for getting system handler */
-static esp_err_t system_info_get_handler(httpd_req_t *req){
-    httpd_resp_set_type(req, "application/json");
-    cJSON *root = cJSON_CreateObject();
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
-    cJSON_AddStringToObject(root, "version", IDF_VER);
-    cJSON_AddNumberToObject(root, "cores", chip_info.cores);
-    const char *sys_info = cJSON_Print(root);
-    httpd_resp_sendstr(req, sys_info);
-    free((void *)sys_info);
-    cJSON_Delete(root);
-    return ESP_OK;
-}
-
 /* Simple handler for getting BLE scan results*/
 static esp_err_t ble_scan_get_handler(httpd_req_t *req){
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     httpd_resp_set_type(req, "application/json");
     json_resp = cJSON_CreateArray();
     // start scanning for near devices
@@ -47,6 +33,8 @@ static esp_err_t ble_scan_get_handler(httpd_req_t *req){
 }
 
 static esp_err_t list_device_get_handler(httpd_req_t *req){
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_type(req, "application/json");
     int bond_cnt = esp_ble_get_bond_device_num();
     esp_ble_bond_dev_t list[bond_cnt];
     ESP_LOGI(REST_TAG,"list length: %d", bond_cnt);
@@ -75,6 +63,7 @@ static esp_err_t remove_device_post_handler(httpd_req_t *req){
     int cur_len = 0;
     char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
     int received = 0;
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     if (total_len >= SCRATCH_BUFSIZE) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
         return ESP_FAIL;
@@ -101,6 +90,7 @@ static esp_err_t remove_device_post_handler(httpd_req_t *req){
         ESP_LOGI(REST_TAG, "address to be removed: %s hex: %x", str, address_hex[i]);
     }
     esp_ble_remove_bond_device(address_hex);
+    httpd_resp_sendstr(req, "Device was successfully removed");
     return ESP_OK;
 }
 
@@ -109,6 +99,8 @@ static esp_err_t add_device_post_handler(httpd_req_t *req){
     int cur_len = 0;
     char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
     int received = 0;
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    ets_printf("som tu\n\n\n\n\n\n");
     if (total_len >= SCRATCH_BUFSIZE) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
         return ESP_FAIL;
@@ -145,6 +137,7 @@ static esp_err_t change_code_post_handler(httpd_req_t *req){
     int cur_len = 0;
     char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
     int received = 0;
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     if (total_len >= SCRATCH_BUFSIZE) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
         return ESP_FAIL;
@@ -214,6 +207,7 @@ static esp_err_t change_code_post_handler(httpd_req_t *req){
 }
 
 static esp_err_t system_arm_get_handler(httpd_req_t *req){
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     esp_err_t ret = arm_system();
     if (ret == ESP_FAIL){
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "System failed to activate.");
@@ -223,11 +217,16 @@ static esp_err_t system_arm_get_handler(httpd_req_t *req){
     return ret;
 }
 
-esp_err_t start_rest_server(const char *base_path){
-    REST_CHECK(base_path, "Wrong base path", err);
+static esp_err_t default_options_handler(httpd_req_t *req){
+    ESP_LOGI(REST_TAG, "Options req received");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "*");
+    httpd_resp_sendstr(req, "CORS");
+    return ESP_OK;
+}
+
+esp_err_t start_rest_server(){
     rest_server_context_t *rest_context = calloc(1, sizeof(rest_server_context_t));
-    REST_CHECK(rest_context, "No memory for rest context", err);
-    strlcpy(rest_context->base_path, base_path, sizeof(rest_context->base_path));
 
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -235,15 +234,6 @@ esp_err_t start_rest_server(const char *base_path){
 
     ESP_LOGI(REST_TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
-
-    /* URI handler for fetching system info */
-    httpd_uri_t system_info_get_uri = {
-        .uri = "/api/v1/system/info",
-        .method = HTTP_GET,
-        .handler = system_info_get_handler,
-        .user_ctx = rest_context
-    };
-    httpd_register_uri_handler(server, &system_info_get_uri);
 
     /* URI handler for getting web server files */
     httpd_uri_t scan_get_uri = {
@@ -286,6 +276,14 @@ esp_err_t start_rest_server(const char *base_path){
     };
     httpd_register_uri_handler(server, &change_code_post_uri);
 
+    httpd_uri_t default_options_uri = {
+        .uri = "/*",
+        .method = HTTP_OPTIONS,
+        .handler = default_options_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &default_options_uri);
+
     httpd_uri_t system_arm_get_uri = {
         .uri = "/system/arm",
         .method = HTTP_GET,
@@ -306,6 +304,5 @@ esp_err_t start_rest_server(const char *base_path){
     return ESP_OK;
 err_start:
     free(rest_context);
-err:
     return ESP_FAIL;
 }

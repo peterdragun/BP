@@ -15,7 +15,7 @@
 
 static RTC_DATA_ATTR struct timeval sleep_enter_time;
 
-#define GATTC_TAG             "SEC_GATTC_DEMO"
+#define GATTC_TAG             "BLE_SENSOR"
 #define REMOTE_SERVICE_UUID   ESP_GATT_UUID_HEART_RATE_SVC
 #define REMOTE_NOTIFY_UUID    0x2A37
 

@@ -111,16 +111,6 @@ static struct gatts_profile_inst gatts_profile_tab[GATTS_PROFILE_NUM] = {
     },
 };
 
-// static esp_bt_uuid_t remote_filter_char_uuid = {
-//     .len = ESP_UUID_LEN_16,
-//     .uuid = {.uuid16 = REMOTE_NOTIFY_CHAR_UUID,},
-// };
-
-// static esp_bt_uuid_t notify_descr_uuid = {
-//     .len = ESP_UUID_LEN_16,
-//     .uuid = {.uuid16 = ESP_GATT_UUID_CHAR_CLIENT_CONFIG,},
-// };
-
 static const char *esp_key_type_to_str(esp_ble_key_type_t key_type)
 {
    const char *key_str = NULL;
@@ -200,7 +190,7 @@ static char *esp_auth_req_to_str(esp_ble_auth_req_t auth_req)
 static void initialise_mdns(void)
 {
     mdns_init();
-    mdns_hostname_set(CONFIG_EXAMPLE_MDNS_HOST_NAME);
+    mdns_hostname_set(CONFIG_MDNS_HOST_NAME);
     mdns_instance_name_set(MDNS_INSTANCE);
 
     mdns_txt_item_t serviceTxtData[] = {
@@ -1024,7 +1014,7 @@ void app_main(){
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     initialise_mdns();
     netbiosns_init();
-    netbiosns_set_name(CONFIG_EXAMPLE_MDNS_HOST_NAME);
+    netbiosns_set_name(CONFIG_MDNS_HOST_NAME);
 
     // load alarm code from non-volatile memory
     ret = nvs_open("storage", NVS_READONLY, &nvs_handle);
@@ -1050,7 +1040,7 @@ void app_main(){
 
     // init rest server
     ESP_ERROR_CHECK(example_connect());
-    ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
+    ESP_ERROR_CHECK(start_rest_server());
 
     // init BLE
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
@@ -1088,7 +1078,7 @@ void app_main(){
     }
 
     // gattc register
-    //register the callback function to the gattc module
+    // register the callback function to the gattc module
     ret = esp_ble_gattc_register_callback(esp_gattc_cb);
     if(ret){
         ESP_LOGE(BLE_SECURITY_SYSTEM, "%s gattc register error, error code = %x\n", __func__, ret);

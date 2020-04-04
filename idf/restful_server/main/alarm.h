@@ -13,7 +13,7 @@
 #define GPIO_COL_0            12
 #define GPIO_COL_1            13
 #define GPIO_COL_2            14
-#define GPIO_OUTPUT_PIN_SEL   ((1ULL<<GPIO_COL_0) | (1ULL<<GPIO_COL_1) | (1ULL<<GPIO_COL_2)
+#define GPIO_OUTPUT_PIN_SEL   ((1ULL<<GPIO_COL_0) | (1ULL<<GPIO_COL_1) | (1ULL<<GPIO_COL_2))
 
 #define GPIO_ROW_0            27
 #define GPIO_ROW_1            26

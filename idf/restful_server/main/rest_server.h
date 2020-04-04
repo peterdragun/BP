@@ -33,13 +33,12 @@
 extern state_enum_t *security_state;
 
 typedef struct rest_server_context {
-    char base_path[ESP_VFS_PATH_MAX + 1];
     char scratch[SCRATCH_BUFSIZE];
 } rest_server_context_t;
 
 cJSON *json_resp; // BLE scan results
 
-esp_err_t start_rest_server(const char *base_path);
+esp_err_t start_rest_server();
 
 
 #endif
