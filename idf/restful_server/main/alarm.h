@@ -38,7 +38,7 @@
 
 #define SECURITY_SYSTEM       "SECURITY_SYSTEM"
 
-typedef enum state_enum {Disarmed, Armed, Activating, Alarm, Setup} state_enum_t;
+typedef enum state_enum {Setup, Disarmed, Activating, Armed, Alarm} state_enum_t;
 
 void activate_security();
 

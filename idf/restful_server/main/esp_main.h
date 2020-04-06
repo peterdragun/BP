@@ -22,13 +22,7 @@
 #include "alarm.h"
 
 // BLE
-#define GATTS_SERVICE_UUID_TEST_A   0x00FF
-#define GATTS_CHAR_UUID_TEST_A      0xFF01
 #define GATTS_NUM_HANDLE_TEST_A     4
-
-#define GATTS_SERVICE_UUID_TEST_B   0x00EE
-#define GATTS_CHAR_UUID_TEST_B      0xEE01
-#define GATTS_NUM_HANDLE_TEST_B     4
 
 #define GATTS_DEMO_CHAR_VAL_LEN_MAX 0x40
 #define PREPARE_BUF_MAX_SIZE        1024
@@ -60,6 +54,8 @@
 extern ledc_channel_config_t ledc_channel[LEDC_CH_NUM];
 extern char expected_code[19];
 extern state_enum_t *security_state;
+extern TaskHandle_t xHandle_alarm;
+extern TaskHandle_t xHandle_search;
 
 typedef struct {
     uint8_t                 *prepare_buf;

@@ -34,6 +34,7 @@ ledc_channel_config_t ledc_channel[LEDC_CH_NUM] = {
 
 TaskHandle_t xHandle_alarm;
 TaskHandle_t xHandle_activate;
+TaskHandle_t xHandle_search;
 
 void activate_security(){
     int ch;
@@ -90,6 +91,35 @@ void alarm_task(){
     }
 }
 
+void stop_alarm_task(){
+    // 3 quick beeps
+    int ch;
+    for (size_t i = 0; i < 3; i++){
+        for (ch = 0; ch < LEDC_CH_NUM; ch+=2) {
+            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_DUTY);
+            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+        }
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+
+        for (ch = 0; ch < LEDC_CH_NUM; ch+=2) {
+            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
+            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+        }
+        vTaskDelay(50);
+    }
+    vTaskDelete(NULL);
+}
+
+void search_devices_task(){
+    uint32_t duration = 5; // in seconds
+    while (1){
+        // start search
+        esp_ble_gap_start_scanning(duration);
+        // set flag? - maybe security_state is enough
+        vTaskDelay(5000); // TODO update delay
+    }
+}
+
 int col = 0;
 char entered_code[19] = {0};
 
@@ -122,13 +152,17 @@ void compare_codes(){
         esp_err_t ret = arm_system();
         if (ret == ESP_OK){
             // TODO start scanning for near devices
+            xTaskCreate(search_devices_task, "search_devices", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_search);
         }
     }else if (!strcmp(expected_code, entered_code)){
         if(*security_state == Activating){
             vTaskDelete(xHandle_activate);
+            vTaskDelete(xHandle_search);
         }else if(*security_state == Alarm){
             vTaskDelete(xHandle_alarm);
+            xTaskCreate(stop_alarm_task, "stop_alarm", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
         }else if(*security_state != Armed){
+            vTaskDelete(xHandle_search);
             ESP_LOGW(SECURITY_SYSTEM, "Security system is not activated!");
             memset(entered_code, 0, sizeof(entered_code));
             return;
@@ -149,6 +183,7 @@ void compare_codes(){
                 ESP_LOGI(SECURITY_SYSTEM, "Alarm");
                 *security_state = Alarm;
                 *wrong_attempts_ptr = 0;
+                vTaskDelete(xHandle_search);
                 xTaskCreate(alarm_task, "alarm_task", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_alarm);
             }
         }
@@ -156,8 +191,6 @@ void compare_codes(){
     memset(entered_code, 0, sizeof(entered_code));
 }
 
-// TODO run task just in armed, alarm, activating mode, also disarmed for alarm arming
-// also start scanning in same modes?
 void hadle_keypad_task(void *arg)
 {
     int row[4];
