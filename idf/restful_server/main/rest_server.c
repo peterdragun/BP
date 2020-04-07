@@ -1,6 +1,6 @@
 #include "rest_server.h"
 
-extern char expected_code[19];
+uint8_t new_address[6] = {};
 
 static esp_err_t check_state(httpd_req_t *req){
     if (*security_state != Disarmed && *security_state != Setup){
@@ -21,10 +21,12 @@ static esp_err_t ble_scan_get_handler(httpd_req_t *req){
     httpd_resp_set_type(req, "application/json");
     json_resp = cJSON_CreateArray();
     // start scanning for near devices
-    ESP_LOGI("rest-ble-scan", "Start scan");
+    ESP_LOGI(REST_TAG, "Start scan");
+    *scan_type_ptr = Just_scan;
     uint32_t duration = 5; // in seconds
     esp_ble_gap_start_scanning(duration);
-    sleep(5);
+    // sleep(5);
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
     const char *scan = cJSON_Print(json_resp);
     httpd_resp_sendstr(req, scan);
     ESP_LOGI(REST_TAG,"resp: %s", scan);
@@ -111,7 +113,6 @@ static esp_err_t add_device_post_handler(httpd_req_t *req){
     int cur_len = 0;
     char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
     int received = 0;
-    ets_printf("som tu\n\n\n\n\n\n");
     if (total_len >= SCRATCH_BUFSIZE) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
         return ESP_FAIL;
@@ -128,18 +129,30 @@ static esp_err_t add_device_post_handler(httpd_req_t *req){
 
     cJSON *root = cJSON_Parse(buf);
 
-    // TODO hadle not presented object names
-    char* name = cJSON_GetObjectItem(root, "name")->valuestring;
-    char* characteristic = cJSON_GetObjectItem(root, "char")->valuestring;
-    char* gatt = cJSON_GetObjectItem(root, "gatt")->valuestring;
-    ESP_LOGI(REST_TAG, "Connecting to: name = %s, characteristic = %s, gatt = %s", name, characteristic, gatt);
-
+    char* address_str = cJSON_GetObjectItem(root, "address")->valuestring;
+    ESP_LOGI(REST_TAG, "Connecting to: address = %s", address_str);
+    char str[3] = "\0\0\0";
+    ESP_LOGI(REST_TAG, "address to be removed: %s", address_str);
+    for (int i = 0; i < ESP_BD_ADDR_LEN; i++){
+        str[0] = address_str[0];
+        str[1] = address_str[1];
+        new_address[i] = (uint8_t)strtol(str, NULL, 16);
+        address_str = address_str + 2;
+        ESP_LOGI(REST_TAG, "address to be removed: %s hex: %x", str, new_address[i]);
+    }
+    
+    *scan_type_ptr = Add_new;
+    uint32_t duration = 3; // in seconds
+    esp_ble_gap_start_scanning(duration);
+    vTaskDelay(duration *1000 / portTICK_PERIOD_MS);
+    
     // TODO connect to device
     // start new scan?
     // maybe esp_ble_gattc_open() ? 
-    // esp_ble_gap_update_whitelist(true, "address", BLE_WL_ADDR_TYPE_RANDOM);
+    // esp_ble_gap_update_whitelist(true, new_address, BLE_WL_ADDR_TYPE_RANDOM);
     cJSON_Delete(root);
-    httpd_resp_sendstr(req, "Device was successfully added to whitelist");
+    // httpd_resp_sendstr(req, "Device was successfully added to whitelist");
+    httpd_resp_sendstr(req, "Check your device to accept bonding request");
     return ESP_OK;
 }
 

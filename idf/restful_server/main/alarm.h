@@ -8,6 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "esp_log.h"
 #include "freertos/task.h"
+#include "esp_gap_ble_api.h" // esp_ble_gap_start_scanning
 
 // Keypad rows and cols
 #define GPIO_COL_0            12
@@ -39,12 +40,19 @@
 #define SECURITY_SYSTEM       "SECURITY_SYSTEM"
 
 typedef enum state_enum {Setup, Disarmed, Activating, Armed, Alarm} state_enum_t;
+typedef enum scan_enum {Just_scan, Add_new, Search_known} scan_enum_t;
+
+extern scan_enum_t *scan_type_ptr;
 
 void activate_security();
 
 esp_err_t arm_system();
 
 void alarm_task();
+
+void search_devices_task();
+
+void stop_alarm_task();
 
 void compare_codes();
 

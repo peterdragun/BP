@@ -56,6 +56,7 @@ extern char expected_code[19];
 extern state_enum_t *security_state;
 extern TaskHandle_t xHandle_alarm;
 extern TaskHandle_t xHandle_search;
+extern uint8_t new_address[6];
 
 typedef struct {
     uint8_t                 *prepare_buf;

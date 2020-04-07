@@ -1,5 +1,8 @@
 #include "esp_main.h"
 
+scan_enum_t scan_type = Just_scan;
+scan_enum_t *scan_type_ptr = &scan_type;
+
 static esp_gattc_char_elem_t *char_elem_result   = NULL;
 static esp_gattc_descr_elem_t *descr_elem_result = NULL;
 
@@ -108,6 +111,18 @@ static struct gatts_profile_inst gatts_profile_tab[GATTS_PROFILE_NUM] = {
         .gatts_if = ESP_GATT_IF_NONE,       /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
     },
 };
+
+static esp_err_t compare_uuids(uint8_t *uuid1, uint8_t *uuid2){
+    if(sizeof(uuid1) != sizeof(uuid2)){
+        return ESP_FAIL;
+    }
+    for (int i = 0; i < sizeof(uuid1); i++){
+        if(uuid1[i] != uuid2[i]){
+            return ESP_FAIL;
+        }
+    }
+    return ESP_OK;
+}
 
 static const char *esp_key_type_to_str(esp_ble_key_type_t key_type)
 {
@@ -540,35 +555,61 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             if (adv_name_len > 1){
                 adv_name[adv_name_len] = '\0';
             }
-            char address[20];
-            uint8_t *a = scan_result->scan_rst.bda;
-            sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", a[0], a[1], a[2], a[3], a[4], a[5]);
-            cJSON_AddStringToObject(json_obj, "address", (const char*)address);
-            cJSON_AddStringToObject(json_obj, "name", (const char*)adv_name);
-            cJSON_AddItemToArray(json_resp, json_obj);
-            ESP_LOGI(BLE_SECURITY_SYSTEM, "Searched Device Name Len %d", adv_name_len);
-            esp_log_buffer_char(BLE_SECURITY_SYSTEM, adv_name, adv_name_len);
-            ESP_LOGI(BLE_SECURITY_SYSTEM, "\n");
 
-            // TODO hadle scan from Setup mode and in Armed mode
-            if (*security_state == Setup){
-                // if scan, do nothing 
-                // if connect connect to device
-            }else if (*security_state == Armed || *security_state == Alarm){
-                // try to find device from bonded devices
+            
+            switch (*scan_type_ptr){
+                case Just_scan:{
+                    char address[20];
+                    uint8_t *a = scan_result->scan_rst.bda;
+                    sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", a[0], a[1], a[2], a[3], a[4], a[5]);
+                    cJSON_AddStringToObject(json_obj, "address", (const char*)address);
+                    cJSON_AddStringToObject(json_obj, "name", (const char*)adv_name);
+                    cJSON_AddItemToArray(json_resp, json_obj);
+                    ESP_LOGI(BLE_SECURITY_SYSTEM, "Searched Device Name Len %d", adv_name_len);
+                    esp_log_buffer_char(BLE_SECURITY_SYSTEM, adv_name, adv_name_len);
+                    ESP_LOGI(BLE_SECURITY_SYSTEM, "\n");
+                    }
+                    break;
+                case Add_new:
+                    if (compare_uuids(new_address, scan_result->scan_rst.bda) == ESP_OK){
+                        esp_ble_gap_stop_scanning();
+                        if (connect == false) {
+                            connect = true;
+                            ESP_LOGI(BLE_SECURITY_SYSTEM, "connect to the remote device.");
+                            esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, scan_result->scan_rst.bda, scan_result->scan_rst.ble_addr_type, true);
+                        }
+                    }
+                    break;
+                case Search_known:{
+                    if (*security_state == Armed){
+                        int bond_cnt = esp_ble_get_bond_device_num();
+                        esp_ble_bond_dev_t list[bond_cnt];
+                        ESP_LOGI(REST_TAG,"list length: %d", bond_cnt);
+                        esp_ble_get_bond_device_list(&bond_cnt, list);
+
+                        for(int i = 0; i < bond_cnt; i++){
+                            if (compare_uuids(list[i].bd_addr, scan_result->scan_rst.bda) == ESP_OK){
+                                esp_ble_gap_stop_scanning();
+                                if (connect == false) {
+                                    connect = true;
+                                    ESP_LOGI(BLE_SECURITY_SYSTEM, "connect to the remote device.");
+                                    esp_err_t ret = esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, scan_result->scan_rst.bda, scan_result->scan_rst.ble_addr_type, true);
+                                    if (ret == ESP_OK){
+                                        xTaskCreate(stop_alarm_task, "stop_alarm", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+                                        vTaskDelete(xHandle_search);
+                                        *security_state = Disarmed;
+                                    }
+                                }
+                            }
+                        }
+                    }else{
+                        esp_ble_gap_stop_scanning();
+                    }
+                    }
+                    break;
+                default:
+                    break;
             }
-
-            // if (adv_name != NULL) {
-            //     if (strlen(remote_device_name) == adv_name_len && strncmp((char *)adv_name, remote_device_name, adv_name_len) == 0) {
-            //         ESP_LOGI(BLE_SECURITY_SYSTEM, "searched device %s\n", remote_device_name);
-            //         if (connect == false) {
-            //             connect = true;
-            //             ESP_LOGI(BLE_SECURITY_SYSTEM, "connect to the remote device.");
-            //             esp_ble_gap_stop_scanning();
-            //             esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, scan_result->scan_rst.bda, scan_result->scan_rst.ble_addr_type, true);
-            //         }
-            //     }
-            // }
             break;
         case ESP_GAP_SEARCH_INQ_CMPL_EVT:
             break;

@@ -3,7 +3,12 @@
 state_enum_t security = Disarmed;
 state_enum_t *security_state = &security;
 
+int keypad_col = 0;
+
+char entered_code[19] = {0};
 char expected_code[19] = "123456"; //Default alarm code
+int wrong_attempts = 0;
+int *wrong_attempts_ptr = &wrong_attempts;
 
 ledc_channel_config_t ledc_channel[LEDC_CH_NUM] = {
     {
@@ -71,6 +76,7 @@ void activate_security(){
 
     ESP_LOGI(SECURITY_SYSTEM, "Armed");
     *security_state = Armed;
+    xTaskCreate(search_devices_task, "search_devices", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_search);
     vTaskDelete(NULL);
 }
 
@@ -112,19 +118,12 @@ void stop_alarm_task(){
 
 void search_devices_task(){
     uint32_t duration = 5; // in seconds
+    *scan_type_ptr = Search_known;
     while (1){
-        // start search
         esp_ble_gap_start_scanning(duration);
-        // set flag? - maybe security_state is enough
-        vTaskDelay(5000); // TODO update delay
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 }
-
-int col = 0;
-char entered_code[19] = {0};
-
-int wrong_attempts = 0;
-int *wrong_attempts_ptr = &wrong_attempts;
 
 void add_char_to_code(char c){
     int entered_code_len = strlen(entered_code);
@@ -149,25 +148,21 @@ esp_err_t arm_system(){
 
 void compare_codes(){
     if ((entered_code[0] == '*') && (strlen(entered_code) == 1)){
-        esp_err_t ret = arm_system();
-        if (ret == ESP_OK){
-            // TODO start scanning for near devices
-            xTaskCreate(search_devices_task, "search_devices", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_search);
-        }
+        arm_system();
     }else if (!strcmp(expected_code, entered_code)){
         if(*security_state == Activating){
             vTaskDelete(xHandle_activate);
-            vTaskDelete(xHandle_search);
         }else if(*security_state == Alarm){
             vTaskDelete(xHandle_alarm);
-            xTaskCreate(stop_alarm_task, "stop_alarm", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
         }else if(*security_state != Armed){
+            xTaskCreate(stop_alarm_task, "stop_alarm", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
             vTaskDelete(xHandle_search);
             ESP_LOGW(SECURITY_SYSTEM, "Security system is not activated!");
             memset(entered_code, 0, sizeof(entered_code));
             return;
         }
         ESP_LOGI(SECURITY_SYSTEM, "System disarmed");
+        vTaskDelete(xHandle_search);
         *wrong_attempts_ptr = 0;
         // make sure buzzer stopped beeping
         for (int ch = 0; ch < LEDC_CH_NUM; ch++) {
@@ -200,7 +195,7 @@ void hadle_keypad_task(void *arg)
         row[1] = gpio_get_level(GPIO_ROW_1);
         row[2] = gpio_get_level(GPIO_ROW_2);
         row[3] = gpio_get_level(GPIO_ROW_3);
-        switch (col){
+        switch (keypad_col){
         case 0:
             if (row[0] == 1){
                 c = '*';
@@ -214,7 +209,7 @@ void hadle_keypad_task(void *arg)
             gpio_set_level(GPIO_COL_0, 1);
             gpio_set_level(GPIO_COL_1, 0);
             gpio_set_level(GPIO_COL_2, 0);
-            col++;
+            keypad_col++;
             break;
         case 1:
             if (row[0] == 1){
@@ -229,7 +224,7 @@ void hadle_keypad_task(void *arg)
             gpio_set_level(GPIO_COL_0, 0);
             gpio_set_level(GPIO_COL_1, 1);
             gpio_set_level(GPIO_COL_2, 0);
-            col++;
+            keypad_col++;
             break;
         case 2:
             if (row[0] == 1){
@@ -244,7 +239,7 @@ void hadle_keypad_task(void *arg)
             gpio_set_level(GPIO_COL_0, 0);
             gpio_set_level(GPIO_COL_1, 0);
             gpio_set_level(GPIO_COL_2, 1);
-            col = 0;
+            keypad_col = 0;
             break;
         }
         if (c != '\0'){
