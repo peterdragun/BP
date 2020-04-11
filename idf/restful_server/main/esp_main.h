@@ -12,7 +12,7 @@
 #include "lwip/apps/netbiosns.h"
 #include "mdns.h"
 #include "nvs_flash.h"
-#include "protocol_examples_common.h"
+// #include "protocol_examples_common.h"
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -30,11 +30,12 @@
 #define adv_config_flag             (1 << 0)
 #define scan_rsp_config_flag        (1 << 1)
 
-#define GATTS_PROFILE_NUM           2
+#define GATTS_PROFILE_NUM           3
 #define GATTS_PROFILE_A_APP_ID      0
 #define GATTS_PROFILE_B_APP_ID      1
+#define GATTS_PROFILE_C_APP_ID      2
 #define GATTC_PROFILE_NUM           1
-#define GATTC_PROFILE_C_APP_ID      0
+#define GATTC_PROFILE_D_APP_ID      0
 
 #define BLE_SECURITY_SYSTEM         "BLE_SECURITY_SYSTEM"
 #define REMOTE_SERVICE_UUID         ESP_GATT_UUID_HEART_RATE_SVC
@@ -48,6 +49,8 @@
 #define PROFILE_NUM                 1
 #define PROFILE_A_APP_ID            0
 #define INVALID_HANDLE              0
+
+#define NUMBER_OF_UUIDS             3
 
 #define MDNS_INSTANCE "esp_home"
 
