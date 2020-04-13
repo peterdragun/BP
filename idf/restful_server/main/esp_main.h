@@ -12,7 +12,7 @@
 #include "lwip/apps/netbiosns.h"
 #include "mdns.h"
 #include "nvs_flash.h"
-#include "protocol_examples_common.h"
+// #include "protocol_examples_common.h"
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -22,13 +22,7 @@
 #include "alarm.h"
 
 // BLE
-#define GATTS_SERVICE_UUID_TEST_A   0x00FF
-#define GATTS_CHAR_UUID_TEST_A      0xFF01
 #define GATTS_NUM_HANDLE_TEST_A     4
-
-#define GATTS_SERVICE_UUID_TEST_B   0x00EE
-#define GATTS_CHAR_UUID_TEST_B      0xEE01
-#define GATTS_NUM_HANDLE_TEST_B     4
 
 #define GATTS_DEMO_CHAR_VAL_LEN_MAX 0x40
 #define PREPARE_BUF_MAX_SIZE        1024
@@ -36,11 +30,12 @@
 #define adv_config_flag             (1 << 0)
 #define scan_rsp_config_flag        (1 << 1)
 
-#define GATTS_PROFILE_NUM           2
+#define GATTS_PROFILE_NUM           3
 #define GATTS_PROFILE_A_APP_ID      0
 #define GATTS_PROFILE_B_APP_ID      1
+#define GATTS_PROFILE_C_APP_ID      2
 #define GATTC_PROFILE_NUM           1
-#define GATTC_PROFILE_C_APP_ID      0
+#define GATTC_PROFILE_D_APP_ID      0
 
 #define BLE_SECURITY_SYSTEM         "BLE_SECURITY_SYSTEM"
 #define REMOTE_SERVICE_UUID         ESP_GATT_UUID_HEART_RATE_SVC
@@ -55,11 +50,16 @@
 #define PROFILE_A_APP_ID            0
 #define INVALID_HANDLE              0
 
+#define NUMBER_OF_UUIDS             3
+
 #define MDNS_INSTANCE "esp_home"
 
-extern ledc_channel_config_t ledc_channel[LEDC_TEST_CH_NUM];
+extern ledc_channel_config_t ledc_channel[LEDC_CH_NUM];
 extern char expected_code[19];
 extern state_enum_t *security_state;
+extern TaskHandle_t xHandle_alarm;
+extern TaskHandle_t xHandle_search;
+extern uint8_t new_address[6];
 
 typedef struct {
     uint8_t                 *prepare_buf;

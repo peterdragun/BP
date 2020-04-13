@@ -31,6 +31,8 @@
 #define SECURITY_SYSTEM "SECURITY_SYSTEM"
 
 extern state_enum_t *security_state;
+extern scan_enum_t *scan_type_ptr;
+extern char expected_code[19];
 
 typedef struct rest_server_context {
     char scratch[SCRATCH_BUFSIZE];

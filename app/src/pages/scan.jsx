@@ -38,7 +38,7 @@ export default class extends React.Component {
               <CardContent>{`Name: ${device.name}`}</CardContent>
               <CardFooter>
                 <Link></Link>
-                <Button fill raised onClick={() => this.handleClick(device.address)}>Add</Button>
+                <Button fill raised onClick={() => this.handleClick(device.address.replace(/:/g,''))}>Add</Button>
               </CardFooter>
             </Card>
           ))}
@@ -79,7 +79,7 @@ export default class extends React.Component {
       method: 'post',
       // url: 'http://esp-home.local/ble/device/add',
       url: 'http://' + localStorage.ip + '/ble/device/add',
-      timeout: 3000,
+      timeout: 6000,
       data: {
         address: address,
       }
@@ -106,7 +106,6 @@ export default class extends React.Component {
       timeout: 8000
     }).then(response => {
       console.log(response);
-      // var array = removeDuplicates(x => x.address, response.data);
       scan = {result: response.data};
       this.setState({scan});
       done();

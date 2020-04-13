@@ -8,6 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "esp_log.h"
 #include "freertos/task.h"
+#include "esp_gap_ble_api.h" // esp_ble_gap_start_scanning
 
 // Keypad rows and cols
 #define GPIO_COL_0            12
@@ -26,23 +27,32 @@
 #define LEDC_HS_MODE          LEDC_HIGH_SPEED_MODE
 #define LEDC_HS_CH0_BUZZER    18
 #define LEDC_HS_CH0_CHANNEL   LEDC_CHANNEL_0
-#define LEDC_HS_CH1_GPIO      19
+#define LEDC_HS_CH1_LED_R     19
 #define LEDC_HS_CH1_CHANNEL   LEDC_CHANNEL_1
+#define LEDC_HS_CH2_LED_Y     5
+#define LEDC_HS_CH2_CHANNEL   LEDC_CHANNEL_2
 
-#define LEDC_TEST_CH_NUM      4
-#define LEDC_TEST_DUTY        2000
-#define LEDC_TEST_FADE_TIME   3000
+#define LEDC_CH_NUM           3
+#define LEDC_DUTY             2000
+#define LEDC_FADE_TIME        3000
 #define TASK_WAIT             150
 
 #define SECURITY_SYSTEM       "SECURITY_SYSTEM"
 
-typedef enum state_enum {Disarmed, Armed, Activating, Alarm, Setup} state_enum_t;
+typedef enum state_enum {Setup, Disarmed, Activating, Armed, Alarm} state_enum_t;
+typedef enum scan_enum {Just_scan, Add_new, Search_known} scan_enum_t;
+
+extern scan_enum_t *scan_type_ptr;
 
 void activate_security();
 
 esp_err_t arm_system();
 
 void alarm_task();
+
+void search_devices_task();
+
+void stop_alarm_task();
 
 void compare_codes();
 
