@@ -1,4 +1,3 @@
-
 import HomePage from '../pages/home.jsx';
 import AboutPage from '../pages/about.jsx';
 import ScanPage from '../pages/scan.jsx';
@@ -37,66 +36,119 @@ var routes = [
   {
     path: '/scan/',
     async: function (routeTo, routeFrom, resolve, reject) {
-      var router = this;
-      var app = router.app;
-      app.preloader.show();
-
-      axios({
-        method: 'get',
-        // url: 'http://esp-home.local/ble/scan',
-        url: 'http://192.168.1.45/ble/scan',
-        timeout: 8000
-      }).then(response => {
-        console.log(response);
-        var array = removeDuplicates(x => x.address, response.data);
-        var scan = {result: array};
-        app.preloader.hide();
-
+      if (typeof localStorage.ip == 'undefined'){
         resolve(
           {
             component: ScanPage,
           },
           {
             context: {
-              scan: scan,
+              scan: {result: []},
+              errorPopup: true,
+              message: "Please click on 'Get IP address' button on Main page",
             }
           }
         );
-      }, error => {
-        console.log(error),
-        app.preloader.hide();
-      });
+      }else{
+        this.app.preloader.show();
+        axios({
+          method: 'get',
+          // url: 'http://esp-home.local/ble/scan',
+          url: 'http://' + localStorage.ip + '/ble/scan',
+          timeout: 8000
+        }).then(response => {
+          console.log(response);
+          var array = removeDuplicates(x => x.address, response.data);
+          this.app.preloader.hide();
+          resolve(
+            {
+              component: ScanPage,
+            },
+            {
+              context: {
+                scan: {result: array},
+                errorPopup: false,
+                message: "",
+              }
+            }
+          );
+        }, error => {
+          console.log(error),
+          this.app.preloader.hide();
+          resolve(
+            {
+              component: ScanPage,
+            },
+            {
+              context: {
+                scan: {result: []},
+                errorPopup: true,
+                message: error.message,
+              }
+            }
+          );
+        });
+      }
+      
     },
 
   },
   {
     path: '/whitelist/',
     async: function (routeTo, routeFrom, resolve, reject) {
-      var router = this;
-      var app = router.app;
-      app.preloader.show();
-      axios({
-        method: 'get',
-        // url: 'http://esp-home.local/ble/scan',
-        url: 'http://192.168.1.45/ble/device/list',
-        timeout: 3000
-      }).then(response => {
-        var list = {result: response.data};
-        app.preloader.hide();
+      var list = {result: []}
+      if (typeof localStorage.ip == 'undefined'){
         resolve(
           {
             component: WhitelistPage,
           },
           {
             context: {
-              list: list,
+              list: {result: []},
+              message: "Please click on 'Get IP address' button on Main page",
+              errorPopup: true,
             }
           }
         );
-      }, error => {
-        console.log(error),
-        app.preloader.hide();
-      });
+      }else{
+        this.app.preloader.show();
+        axios({
+          method: 'get',
+          // url: 'http://esp-home.local/ble/scan',
+          url: 'http://' + localStorage.ip + '/ble/device/list',
+          timeout: 3000
+        }).then(response => {
+          this.app.preloader.hide();
+          resolve(
+            {
+              component: WhitelistPage,
+            },
+            {
+              context: {
+                list: {result: response.data},
+                message: "",
+                errorPopup: false,
+              }
+            }
+          );
+        }, error => {
+          this.app.preloader.hide();
+          console.log(error),
+          resolve(
+            {
+              component: WhitelistPage,
+            },
+            {
+              context: {
+                list: {result: []},
+                message: error.message,
+                errorPopup: true,
+              }
+            }
+          );
+        });
+      }
+      
     },
 
   },

@@ -85,10 +85,14 @@ export default class extends React.Component {
     );
   }
   handleClick () {
+    if (typeof localStorage.ip == 'undefined'){
+      this.setState({ errorPopupOpened : true, message: "Please connect click on 'Get IP address' button on Main page" })
+      return;
+    }
     axios({
       method: 'post',
       // url: 'http://esp-home.local/code/change',
-      url: 'http://192.168.1.45/code/change',
+      url: 'http://' + localStorage.ip + '/code/change',
       timeout: 3000,
       data: {
         code: this.state.code,

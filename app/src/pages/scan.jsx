@@ -22,8 +22,8 @@ export default class extends React.Component {
     this.state = {
       scan: props.f7route.context.scan,
       succPopupOpened: false,
-      errorPopupOpened: false,
-      message: "",
+      errorPopupOpened: props.f7route.context.errorPopup,
+      message: props.f7route.context.message,
     };
   }
   render() {
@@ -71,10 +71,14 @@ export default class extends React.Component {
     );
   }
   handleClick (address) {
+    if (typeof localStorage.ip == 'undefined'){
+      this.setState({ errorPopupOpened : true, message: "Please click on 'Get IP address' button on Main page" })
+      return;
+    }
     axios({
       method: 'post',
       // url: 'http://esp-home.local/ble/device/add',
-      url: 'http://192.168.1.45/ble/device/add',
+      url: 'http://' + localStorage.ip + '/ble/device/add',
       timeout: 3000,
       data: {
         address: address,
@@ -90,11 +94,15 @@ export default class extends React.Component {
     });
   }
   reload(done){
+    if (typeof localStorage.ip == 'undefined'){
+      this.setState({ errorPopupOpened : true, message: "Please click on 'Get IP address' button on Main page" })
+      return;
+    }
     var {scan} = this.state;
     axios({
       method: 'get',
       // url: 'http://esp-home.local/ble/scan',
-      url: 'http://192.168.1.45/ble/scan',
+      url: 'http://' + localStorage.ip + '/ble/scan',
       timeout: 8000
     }).then(response => {
       console.log(response);

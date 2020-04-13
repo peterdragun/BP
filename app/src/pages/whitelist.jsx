@@ -21,8 +21,8 @@ export default class extends React.Component {
     this.state = {
       list: props.f7route.context.list,
       succPopupOpened: false,
-      errorPopupOpened: false,
-      message: "",
+      errorPopupOpened: props.f7route.context.errorPopup,
+      message: props.f7route.context.message,
     };
   }
   render() {
@@ -34,7 +34,6 @@ export default class extends React.Component {
           {list.result.map((device, index) => (
             <Card key={index}>
               <CardHeader>{`Address: ${device.address}`}</CardHeader>
-              {/* <CardContent>{`Name: ${device.name}`}</CardContent> */}
               <CardFooter>
                 <Link></Link>
                 <Button fill raised color="red" onClick={() => this.handleClick(device.address.replace(/:/g,''))}>Remove</Button>
@@ -70,10 +69,14 @@ export default class extends React.Component {
     );
   }
   handleClick (address) {
+    if (typeof localStorage.ip == 'undefined'){
+      this.setState({ errorPopupOpened : true, message: "Please connect click on 'Get IP address' button on Main page" })
+      return;
+    }
     axios({
       method: 'post',
       // url: 'http://esp-home.local/ble/device/remove',
-      url: 'http://192.168.1.45/ble/device/remove',
+      url: 'http://' + localStorage.ip + '/ble/device/remove',
       timeout: 3000,
       data: {
         address: address,
