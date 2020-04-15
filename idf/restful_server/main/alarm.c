@@ -121,7 +121,7 @@ void search_devices_task(){
     *scan_type_ptr = Search_known;
     while (1){
         esp_ble_gap_start_scanning(duration);
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
     }
 }
 
@@ -162,7 +162,6 @@ void compare_codes(){
             return;
         }
         ESP_LOGI(SECURITY_SYSTEM, "System disarmed");
-        vTaskDelete(xHandle_search);
         *wrong_attempts_ptr = 0;
         // make sure buzzer stopped beeping
         for (int ch = 0; ch < LEDC_CH_NUM; ch++) {

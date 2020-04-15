@@ -12,7 +12,7 @@
 #include "lwip/apps/netbiosns.h"
 #include "mdns.h"
 #include "nvs_flash.h"
-// #include "protocol_examples_common.h"
+#include "protocol_examples_common.h"
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -20,6 +20,7 @@
 
 #include "rest_server.h"
 #include "alarm.h"
+#include "wifi_connect.h"
 
 // BLE
 #define GATTS_NUM_HANDLE_TEST_A     4
@@ -60,6 +61,7 @@ extern state_enum_t *security_state;
 extern TaskHandle_t xHandle_alarm;
 extern TaskHandle_t xHandle_search;
 extern uint8_t new_address[6];
+extern esp_ip4_addr_t s_ip_addr;
 
 typedef struct {
     uint8_t                 *prepare_buf;
