@@ -23,6 +23,7 @@ static RTC_DATA_ATTR struct timeval sleep_enter_time;
 
 #define GATTC_TAG             "BLE_SENSOR"
 #define INPUT_PIN             32
+#define LED_PIN               19
 
 static uint8_t report_service_uuid[] = {0xae, 0x28, 0x74, 0xca, 0xad, 0xa5, 0x86, 0xac, 0x9b, 0x46, 0x84, 0x39, 0x1e, 0x37, 0x4a, 0x53};
 static uint8_t status_service_uuid[] = {0x89, 0x38, 0xc2, 0xef, 0x89, 0x67, 0x41, 0xaf, 0xae, 0x4d, 0xaa, 0xfe, 0x6d, 0xb3, 0xdb, 0x56};
@@ -50,8 +51,8 @@ static bool connect = false;
 static bool get_service = false;
 static const char remote_device_name[] = "ESP_main_unit";
 
-uint8_t val = 0;
-uint8_t *alarm = &val;
+RTC_DATA_ATTR uint8_t alarm = 0;
+uint8_t *alarm_ptr = &alarm;
 uint8_t security_state = 0;
 uint8_t *security_state_ptr = &security_state;
 
@@ -266,15 +267,18 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
                         {
                             if (char_elem_result[i].uuid.len == ESP_UUID_LEN_128 && compare_uuids(char_elem_result[i].uuid.uuid.uuid128, report_service_uuid) == ESP_OK && (char_elem_result[i].properties & ESP_GATT_CHAR_PROP_BIT_WRITE))
                             {
-                                //TODO update to write from notify
                                 gl_profile_tab[PROFILE_A_APP_ID].char_handle = char_elem_result[i].char_handle;
-                                esp_ble_gattc_write_char(gattc_if,
+                                ret_status = esp_ble_gattc_write_char(gattc_if,
                                                          gl_profile_tab[PROFILE_A_APP_ID].conn_id,
                                                          char_elem_result[i].char_handle,
-                                                         sizeof(*alarm),
-                                                         alarm,
+                                                         sizeof(*alarm_ptr),
+                                                         alarm_ptr,
                                                          ESP_GATT_WRITE_TYPE_NO_RSP,
                                                          ESP_GATT_AUTH_REQ_NONE);
+                                if (ret_status == ESP_OK){
+                                    gpio_set_level(LED_PIN, 0);
+                                    *alarm_ptr = 0;
+                                }
                                 break;
                             }else if(char_elem_result[i].uuid.len == ESP_UUID_LEN_128 && compare_uuids(char_elem_result[i].uuid.uuid.uuid128, status_service_uuid) == ESP_OK && (char_elem_result[i].properties & ESP_GATT_CHAR_PROP_BIT_READ)){
                                 gl_profile_tab[PROFILE_A_APP_ID].char_handle = char_elem_result[0].char_handle;
@@ -297,6 +301,8 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
             *security_state_ptr = p_data->read.value[0];
             if(*security_state_ptr == 3){ // write just on Armed state
                 esp_ble_gattc_search_service(gattc_if, param->cfg_mtu.conn_id, &remote_filter_report_service_uuid);
+            }else{
+                *alarm_ptr = 0;
             }
         }else{
             ESP_LOGE(GATTC_TAG, "Unexpected value length");
@@ -498,14 +504,48 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp
 void app_main(void)
 {
     // Initialize NVS.
-    // TODO maybe send alarm three times? or when write didnt succeeded 
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
-    ESP_ERROR_CHECK( ret );
+    ESP_ERROR_CHECK(ret);
 
+    gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask = 1ULL<<LED_PIN;
+    io_conf.pull_down_en = 0;
+    io_conf.pull_up_en = 0;
+    gpio_config(&io_conf);
+
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    int sleep_time_ms = (now.tv_sec - sleep_enter_time.tv_sec) * 1000 + (now.tv_usec - sleep_enter_time.tv_usec) / 1000;
+
+    switch (esp_sleep_get_wakeup_cause()) {
+        case ESP_SLEEP_WAKEUP_EXT1: {
+            *alarm_ptr = 1;
+            gpio_set_level(LED_PIN, 1);
+            uint64_t wakeup_pin_mask = esp_sleep_get_ext1_wakeup_status();
+            if (wakeup_pin_mask != 0) {
+                int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
+                printf("Wake up from GPIO %d\n", pin);
+            } else {
+                printf("Wake up from GPIO\n");
+            }
+            break;
+        }
+        case ESP_SLEEP_WAKEUP_TIMER: {
+            printf("Wake up from timer. Time spent in deep sleep: %dms\n", sleep_time_ms);
+            break;
+        }
+        case ESP_SLEEP_WAKEUP_UNDEFINED:
+        default:
+            printf("Not a deep sleep reset\n");
+    }
+
+    //BLE setup
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
@@ -575,35 +615,10 @@ void app_main(void)
     esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key, sizeof(uint8_t));
     esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &rsp_key, sizeof(uint8_t));
 
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    int sleep_time_ms = (now.tv_sec - sleep_enter_time.tv_sec) * 1000 + (now.tv_usec - sleep_enter_time.tv_usec) / 1000;
-
-    switch (esp_sleep_get_wakeup_cause()) {
-        case ESP_SLEEP_WAKEUP_EXT1: {
-            *alarm = 1;
-            uint64_t wakeup_pin_mask = esp_sleep_get_ext1_wakeup_status();
-            if (wakeup_pin_mask != 0) {
-                int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
-                printf("Wake up from GPIO %d\n", pin);
-            } else {
-                printf("Wake up from GPIO\n");
-            }
-            break;
-        }
-        case ESP_SLEEP_WAKEUP_TIMER: {
-            printf("Wake up from timer. Time spent in deep sleep: %dms\n", sleep_time_ms);
-            break;
-        }
-        case ESP_SLEEP_WAKEUP_UNDEFINED:
-        default:
-            printf("Not a deep sleep reset\n");
-    }
-
     vTaskDelay(2000 / portTICK_PERIOD_MS);
 
     int wakeup_time_sec = 20;
-    if(*security_state_ptr < 2){ // in disarmed and setup mode
+    if((*security_state_ptr < 2) && alarm == 0){ // in disarmed and setup mode
         wakeup_time_sec = 40;
     }
     printf("Enabling timer wakeup, %ds\n", wakeup_time_sec);
@@ -612,7 +627,7 @@ void app_main(void)
     const int ext_wakeup_pin = INPUT_PIN;
     const uint64_t ext_wakeup_pin_mask = 1ULL << ext_wakeup_pin;
 
-    if(*security_state_ptr > 1){ // activating+ will enable gpio wakeup
+    if((*security_state_ptr > 1) || alarm == 1){ // activating+ will enable gpio wakeup
         printf("Enabling EXT1 wakeup on pins GPIO%d\n", ext_wakeup_pin);
         esp_sleep_enable_ext1_wakeup(ext_wakeup_pin_mask, WAKE_UP);
     }
