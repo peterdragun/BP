@@ -132,13 +132,13 @@ static esp_err_t add_device_post_handler(httpd_req_t *req){
     char* address_str = cJSON_GetObjectItem(root, "address")->valuestring;
     ESP_LOGI(REST_TAG, "Connecting to: address = %s", address_str);
     char str[3] = "\0\0\0";
-    ESP_LOGI(REST_TAG, "address to be removed: %s", address_str);
+    ESP_LOGI(REST_TAG, "address to be added: %s", address_str);
     for (int i = 0; i < ESP_BD_ADDR_LEN; i++){
         str[0] = address_str[0];
         str[1] = address_str[1];
         new_address[i] = (uint8_t)strtol(str, NULL, 16);
         address_str = address_str + 2;
-        ESP_LOGI(REST_TAG, "address to be removed: %s hex: %x", str, new_address[i]);
+        ESP_LOGI(REST_TAG, "address to be added: %s hex: %x", str, new_address[i]);
     }
     
     *scan_type_ptr = Add_new;
@@ -147,11 +147,8 @@ static esp_err_t add_device_post_handler(httpd_req_t *req){
     vTaskDelay(duration *1000 / portTICK_PERIOD_MS);
     
     // TODO connect to device
-    // start new scan?
-    // maybe esp_ble_gattc_open() ? 
     // esp_ble_gap_update_whitelist(true, new_address, BLE_WL_ADDR_TYPE_RANDOM);
     cJSON_Delete(root);
-    // httpd_resp_sendstr(req, "Device was successfully added to whitelist");
     httpd_resp_sendstr(req, "Check your device to accept bonding request");
     return ESP_OK;
 }
