@@ -3,9 +3,9 @@
 uint8_t new_address[6] = {};
 
 static esp_err_t check_state(httpd_req_t *req){
-    if (*security_state != Disarmed && *security_state != Setup){
-        char * err_msg = "Security system needs to be in setup or disarmed mode for this operation.";
-        ESP_LOGW(SECURITY_SYSTEM, "Security system needs to be in setup or disarmed mode for this operation.");
+    if (*security_state != Setup){
+        char * err_msg = "Security system needs to be in setup mode for this operation.";
+        ESP_LOGW(SECURITY_SYSTEM, "%s", err_msg);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, err_msg);
         return ESP_FAIL;
     }
@@ -25,7 +25,6 @@ static esp_err_t ble_scan_get_handler(httpd_req_t *req){
     *scan_type_ptr = Just_scan;
     uint32_t duration = 5; // in seconds
     esp_ble_gap_start_scanning(duration);
-    // sleep(5);
     vTaskDelay(5000 / portTICK_PERIOD_MS);
     const char *scan = cJSON_Print(json_resp);
     httpd_resp_sendstr(req, scan);
@@ -44,14 +43,27 @@ static esp_err_t list_device_get_handler(httpd_req_t *req){
     httpd_resp_set_type(req, "application/json");
     int bond_cnt = esp_ble_get_bond_device_num();
     esp_ble_bond_dev_t list[bond_cnt];
+    esp_ble_bond_dev_t new_list[bond_cnt-number_of_sensors];
     ESP_LOGI(REST_TAG,"list length: %d", bond_cnt);
     esp_ble_get_bond_device_list(&bond_cnt, list);
     char address[20];
     uint8_t *a;
     cJSON *json_list = cJSON_CreateArray();
     cJSON *json_obj;
+    int new_i = 0;
     for (int i = 0; i < bond_cnt; i++){
-        a = list[i].bd_addr;
+        // remove sensors from list
+        for (int j = 0; j < number_of_sensors; j++){
+            // small optimalization if all senzors were removed end cycle
+            if ((i - new_i) == number_of_sensors){
+                break;
+            }
+            if (compare_uuids(sensors[j].address, list[i].bd_addr)==ESP_FAIL){
+                new_list[new_i] = list[i];
+                new_i++;
+            }
+        }
+        a = new_list[i].bd_addr;
         sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", a[0], a[1], a[2], a[3], a[4], a[5]);
         json_obj = cJSON_CreateObject();
         cJSON_AddStringToObject(json_obj, "address", (const char*)address);
@@ -101,6 +113,7 @@ static esp_err_t remove_device_post_handler(httpd_req_t *req){
     }
     esp_ble_remove_bond_device(address_hex);
     httpd_resp_sendstr(req, "Device was successfully removed");
+    cJSON_Delete(root);
     return ESP_OK;
 }
 
@@ -146,8 +159,6 @@ static esp_err_t add_device_post_handler(httpd_req_t *req){
     esp_ble_gap_start_scanning(duration);
     vTaskDelay(duration *1000 / portTICK_PERIOD_MS);
     
-    // TODO connect to device
-    // esp_ble_gap_update_whitelist(true, new_address, BLE_WL_ADDR_TYPE_RANDOM);
     cJSON_Delete(root);
     httpd_resp_sendstr(req, "Check your device to accept bonding request");
     return ESP_OK;
@@ -232,7 +243,10 @@ static esp_err_t change_code_post_handler(httpd_req_t *req){
 
 static esp_err_t system_arm_get_handler(httpd_req_t *req){
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-    if (check_state(req) != ESP_OK){
+    if (*security_state != Disarmed && *security_state != Setup){
+        char * err_msg = "Security system needs to be in setup or disarmed mode for this operation.";
+        ESP_LOGW(SECURITY_SYSTEM, "Security system needs to be in setup or disarmed mode for this operation.");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, err_msg);
         return ESP_FAIL;
     }
     esp_err_t ret = arm_system();
@@ -242,6 +256,127 @@ static esp_err_t system_arm_get_handler(httpd_req_t *req){
         httpd_resp_sendstr(req, "System will be activated in 30 seconds");
     }
     return ret;
+}
+
+static esp_err_t sensors_list_get_handler(httpd_req_t *req){
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (check_state(req) != ESP_OK){
+        return ESP_FAIL;
+    }
+    httpd_resp_set_type(req, "application/json");
+    cJSON *json_list = cJSON_CreateArray();
+    cJSON *json_obj;
+    char address[20];
+    uint8_t *a;
+
+    for (int i = 0; i < number_of_sensors; i++){
+        a = sensors[i].address;
+        sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", a[0], a[1], a[2], a[3], a[4], a[5]);
+        json_obj = cJSON_CreateObject();
+        cJSON_AddStringToObject(json_obj, "address", (const char*)address);
+        cJSON_AddItemToArray(json_list, json_obj);
+    }
+    sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", unknown_sensor[0], unknown_sensor[1], unknown_sensor[2], unknown_sensor[3], unknown_sensor[4], unknown_sensor[5]);
+    cJSON_AddStringToObject(json_list, "unknown", (const char*)address);
+    
+    const char *sensors_list = cJSON_Print(json_list);
+    httpd_resp_sendstr(req, sensors_list);
+    ESP_LOGI(REST_TAG,"resp: %s", sensors_list);
+    free((void *)sensors_list);
+    cJSON_Delete(json_list);
+    return ESP_OK;
+}
+
+static esp_err_t sensors_add_post_handler(httpd_req_t *req){
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (check_state(req) != ESP_OK){
+        return ESP_FAIL;
+    }
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    int total_len = req->content_len;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        return ESP_FAIL;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+            return ESP_FAIL;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+    cJSON *root = cJSON_Parse(buf);
+    char* address_str = cJSON_GetObjectItem(root, "address")->valuestring;
+    esp_bd_addr_t address_hex;
+    char str[3] = "\0\0\0";
+    ESP_LOGI(REST_TAG, "address to be added: %s", address_str);
+    for (int i = 0; i < ESP_BD_ADDR_LEN; i++){
+        str[0] = address_str[0];
+        str[1] = address_str[1];
+        address_hex[i] = (uint8_t)strtol(str, NULL, 16);
+        address_str = address_str + 2;
+        ESP_LOGI(REST_TAG, "address to be added: %s hex: %x", str, address_hex[i]);
+    }
+
+    esp_err_t ret = add_new_sensor(address_hex);
+    if (ret == ESP_OK){
+        httpd_resp_sendstr(req, "Sensor was successfully added");
+    }else{
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+    }
+
+    cJSON_Delete(root);
+    return ret;
+}
+
+static esp_err_t sensors_remove_post_handler(httpd_req_t *req){
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (check_state(req) != ESP_OK){
+        return ESP_FAIL;
+    }
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    int total_len = req->content_len;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        return ESP_FAIL;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+            return ESP_FAIL;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+    cJSON *root = cJSON_Parse(buf);
+    char* address_str = cJSON_GetObjectItem(root, "address")->valuestring;
+    esp_bd_addr_t address_hex;
+    char str[3] = "\0\0\0";
+    ESP_LOGI(REST_TAG, "address to be removed: %s", address_str);
+    for (int i = 0; i < ESP_BD_ADDR_LEN; i++){
+        str[0] = address_str[0];
+        str[1] = address_str[1];
+        address_hex[i] = (uint8_t)strtol(str, NULL, 16);
+        address_str = address_str + 2;
+        ESP_LOGI(REST_TAG, "address to be removed: %s hex: %x", str, address_hex[i]);
+    }
+
+    esp_err_t ret = remove_sensor(address_hex);
+    if (ret == ESP_OK){
+        httpd_resp_sendstr(req, "Sensor was successfully removed");
+    }else{
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+    }
+
+    cJSON_Delete(root);
+    return ESP_OK;
 }
 
 static esp_err_t default_options_handler(httpd_req_t *req){
@@ -302,6 +437,30 @@ esp_err_t start_rest_server(){
         .user_ctx = rest_context
     };
     httpd_register_uri_handler(server, &change_code_post_uri);
+
+    httpd_uri_t sensors_list_get_uri = {
+        .uri = "/sensors/list",
+        .method = HTTP_GET,
+        .handler = sensors_list_get_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &sensors_list_get_uri);
+
+    httpd_uri_t sensors_add_post_uri = {
+        .uri = "/system/add",
+        .method = HTTP_POST,
+        .handler = sensors_add_post_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &sensors_add_post_uri);
+
+    httpd_uri_t sensors_remove_post_uri = {
+        .uri = "/system/remove",
+        .method = HTTP_POST,
+        .handler = sensors_remove_post_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &sensors_remove_post_uri);
 
     httpd_uri_t system_arm_get_uri = {
         .uri = "/system/arm",

@@ -91,16 +91,18 @@ static void start(void)
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = CONFIG_EXAMPLE_WIFI_SSID,
-            .password = CONFIG_EXAMPLE_WIFI_PASSWORD,
+            .ssid = "",
+            .password = "",
         },
     };
+    memcpy(wifi_config.sta.ssid, wifi_ssid, 32);
+    memcpy(wifi_config.sta.password, wifi_pass, 64);
     ESP_LOGI(TAG, "Connecting to %s...", wifi_config.sta.ssid);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_ERROR_CHECK(esp_wifi_connect());
-    s_connection_name = CONFIG_EXAMPLE_WIFI_SSID;
+    s_connection_name = (const char*)wifi_ssid;
 }
 
 static void stop(void)

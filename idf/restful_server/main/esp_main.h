@@ -53,8 +53,6 @@
 
 #define NUMBER_OF_UUIDS             3
 
-#define MDNS_INSTANCE "esp_home"
-
 extern ledc_channel_config_t ledc_channel[LEDC_CH_NUM];
 extern char expected_code[19];
 extern state_enum_t *security_state;
@@ -64,8 +62,8 @@ extern uint8_t new_address[6];
 extern esp_ip4_addr_t s_ip_addr;
 
 typedef struct {
-    uint8_t                 *prepare_buf;
-    int                      prepare_len;
+    uint8_t *prepare_buf;
+    int prepare_len;
 } prepare_type_env_t;
 
 struct gatts_profile_inst {
@@ -93,6 +91,12 @@ struct gattc_profile_inst {
     uint16_t notify_char_handle;
     esp_bd_addr_t remote_bda;
 };
+
+esp_err_t compare_uuids(uint8_t *uuid1, uint8_t *uuid2);
+
+esp_err_t add_new_sensor(uint8_t *address);
+
+esp_err_t remove_sensor(uint8_t *address);
 
 void app_main();
 

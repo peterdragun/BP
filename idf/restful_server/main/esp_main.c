@@ -1,7 +1,17 @@
 #include "esp_main.h"
 
+char wifi_ssid[32] = "Heslo za pivo";
+char wifi_pass[64] = "neviem12";
+
 scan_enum_t scan_type = Just_scan;
 scan_enum_t *scan_type_ptr = &scan_type;
+
+uint8_t unknown_sensor[6];
+sensor_t sensors[MAX_NUMBER_OF_SENSORS];
+uint8_t number_of_sensors = 0;
+TaskHandle_t xHandle_increment_beeps;
+
+const char sensors_nvs_key[5][3] = {"s1\0", "s2\0", "s3\0", "s4\0", "s5\0" };
 
 static esp_gattc_char_elem_t *char_elem_result   = NULL;
 static esp_gattc_descr_elem_t *descr_elem_result = NULL;
@@ -116,7 +126,7 @@ static struct gatts_profile_inst gatts_profile_tab[GATTS_PROFILE_NUM] = {
     },
 };
 
-static esp_err_t compare_uuids(uint8_t *uuid1, uint8_t *uuid2){
+esp_err_t compare_uuids(uint8_t *uuid1, uint8_t *uuid2){
     if(sizeof(uuid1) != sizeof(uuid2)){
         return ESP_FAIL;
     }
@@ -126,6 +136,102 @@ static esp_err_t compare_uuids(uint8_t *uuid1, uint8_t *uuid2){
         }
     }
     return ESP_OK;
+}
+
+static esp_err_t record_sensor(uint8_t *address){
+    for (int i = 0; i < number_of_sensors; i++){
+        if(compare_uuids(sensors[i].address, address) == ESP_OK){
+            sensors[i].missed_beeps = 0;
+            return ESP_OK;
+        }
+    }
+    for (int i = 0; i < 6; i++){
+        unknown_sensor[i] = address[i];
+    }
+    return ESP_FAIL;
+}
+
+esp_err_t add_new_sensor(uint8_t *address){
+    if (number_of_sensors == MAX_NUMBER_OF_SENSORS){
+        return ESP_FAIL;
+    }
+    for (int i = 0; i < number_of_sensors; i++){
+        if (compare_uuids(address, sensors[i].address)==ESP_OK){
+            return ESP_FAIL;
+        }
+    }
+    nvs_handle_t nvs_handle;
+    uint64_t number = 0;
+    esp_err_t ret = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+    if (ret == ESP_OK) {
+        ESP_LOGI(REST_TAG, "Writing sensor address to NVS memory... ");
+        for (uint8_t i = 0; i < 6; i++){
+            printf("%x\n", address[i]);
+            number |= address[i];
+            number = number << 8;
+            sensors[number_of_sensors].address[i] = address[i];
+        }
+        ret = nvs_set_u64(nvs_handle, sensors_nvs_key[number_of_sensors], number);
+        if(ret == ESP_OK){
+            nvs_set_u8(nvs_handle, "sensors_cnt", number_of_sensors+1);
+            nvs_commit(nvs_handle);
+        }
+        nvs_close(nvs_handle);
+        ESP_LOGI(REST_TAG, "Done");
+    }
+    sensors[number_of_sensors].missed_beeps = 0;
+    number_of_sensors++;
+    return ESP_OK;
+}
+
+esp_err_t remove_sensor(uint8_t *address){
+    int idx;
+    for (int i = 0; i < number_of_sensors; i++){
+        if (compare_uuids(address, sensors[i].address)==ESP_OK){
+            idx = i;
+            break;
+        }
+        return ESP_FAIL;
+    }
+    nvs_handle_t nvs_handle;
+    uint64_t number = 0;
+    esp_err_t ret = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+    if (ret == ESP_OK) {
+        if (idx != number_of_sensors-1){
+            for (uint8_t i = 0; i < 6; i++){
+                printf("%x\n", address[i]);
+                number |= address[i];
+                number = number << 8;
+                sensors[number_of_sensors].address[i] = address[i];
+            }
+            ret = nvs_set_u64(nvs_handle, sensors_nvs_key[idx], number);
+        }
+        nvs_set_u8(nvs_handle, "sensors_cnt", --number_of_sensors);
+        nvs_erase_key(nvs_handle, sensors_nvs_key[number_of_sensors]);
+        nvs_commit(nvs_handle);
+        nvs_close(nvs_handle);
+    }
+    esp_ble_remove_bond_device(address);
+    return ESP_OK;
+}
+
+void increment_sensor_beeps_task(){
+    uint8_t wait_time;
+    while (1) {
+        ESP_LOGI("incrementing task", "start");
+        for(uint8_t i = 0; i < number_of_sensors; i++){
+            sensors[i].missed_beeps++;
+            if (sensors[i].missed_beeps++ >= 4){
+                //BAD -alarm or smth
+                ESP_LOGE("incrementing task", "senozor sa nehlasi!!!!!");
+            }
+        }
+        wait_time = 40;
+        if(*security_state > Activating){
+            wait_time = 20;
+        }
+        vTaskDelay(wait_time*1000 / portTICK_PERIOD_MS);
+    }
 }
 
 static const char *esp_key_type_to_str(esp_ble_key_type_t key_type)
@@ -203,21 +309,6 @@ static char *esp_auth_req_to_str(esp_ble_auth_req_t auth_req)
    return auth_str;
 }
 
-
-static void initialise_mdns(void)
-{
-    mdns_init();
-    mdns_hostname_set(CONFIG_MDNS_HOST_NAME);
-    mdns_instance_name_set(MDNS_INSTANCE);
-
-    mdns_txt_item_t serviceTxtData[] = {
-        {"board", "esp32"},
-        {"path", "/"}
-    };
-
-    ESP_ERROR_CHECK(mdns_service_add("ESP32-WebServer", "_http", "_tcp", 80, serviceTxtData,
-                                     sizeof(serviceTxtData) / sizeof(serviceTxtData[0])));
-}
 
 static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param)
 {
@@ -990,16 +1081,15 @@ static void gatts_profile_status_event_handler(esp_gatts_cb_event_t event, esp_g
         memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
         rsp.attr_value.handle = param->read.handle;
         rsp.attr_value.len = 1;
-        rsp.attr_value.value[0] = *security_state;
-        esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
-                                    ESP_GATT_OK, &rsp);
+        // check for known mac addresses in sensors and the decrement value for last connection
+        if (record_sensor(param->read.bda) == 0){
+            rsp.attr_value.value[0] = *security_state;
+        }else{
+            rsp.attr_value.value[0] = 5;
+        }
+        esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_OK, &rsp);
         break;
     }
-    // case ESP_GATTS_EXEC_WRITE_EVT:
-    //     ESP_LOGI(BLE_SECURITY_SYSTEM,"ESP_GATTS_EXEC_WRITE_EVT\n");
-    //     esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, ESP_GATT_OK, NULL);
-    //     example_exec_write_event_env(&a_prepare_write_env, param);
-    //     break;
     case ESP_GATTS_MTU_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ESP_GATTS_MTU_EVT, MTU %d\n", param->mtu.mtu);
         break;
@@ -1107,11 +1197,10 @@ void app_main(){
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    initialise_mdns();
     netbiosns_init();
     netbiosns_set_name(CONFIG_MDNS_HOST_NAME);
 
-    // load alarm code from non-volatile memory
+    // load alarm code, wifi crendentials, sensor addresses from non-volatile memory
     ret = nvs_open("storage", NVS_READONLY, &nvs_handle);
     if (ret != ESP_OK) {
         printf("Error (%s) opening NVS handle!\n", esp_err_to_name(ret));
@@ -1130,8 +1219,70 @@ void app_main(){
             default :
                 printf("Error (%s) reading!\n", esp_err_to_name(ret));
         }
+        printf("Reading wifi credentials from NVS ... ");
+        unsigned int str_len = 32;
+        ret = nvs_get_str(nvs_handle, "ssid", wifi_ssid, &str_len);
+        switch (ret) {
+            case ESP_OK:
+                printf("SSID Done...");
+                break;
+            case ESP_ERR_NVS_NOT_FOUND:
+                printf("SSID is not initialized yet!\n");
+                break;
+            default :
+                printf("Error (%s) reading!\n", esp_err_to_name(ret));
+        }
+        str_len *= 2;
+        ret = nvs_get_str(nvs_handle, "pass", wifi_pass, &str_len);
+        switch (ret) {
+            case ESP_OK:
+                printf("Pass Done\n");
+                break;
+            case ESP_ERR_NVS_NOT_FOUND:
+                printf("Pass is not initialized yet!\n");
+                break;
+            default :
+                printf("Error (%s) reading!\n", esp_err_to_name(ret));
+        }
+        printf("Reading sensors addresses from NVS ... ");
+        ret = nvs_get_u8(nvs_handle, "sensors_cnt", &number_of_sensors);
+        switch (ret) {
+            case ESP_OK:
+                printf("CNT Done\n");
+                break;
+            case ESP_ERR_NVS_NOT_FOUND:
+                number_of_sensors = 0;
+                printf("CNT is not initialized yet!\n");
+                break;
+            default :
+                printf("Error (%s) reading!\n", esp_err_to_name(ret));
+        }
+        printf("number of sensors: %d\n",number_of_sensors);
+        uint64_t number = 0;
+        for (uint8_t i = 0; i < number_of_sensors; i++){
+            ret = nvs_get_u64(nvs_handle, sensors_nvs_key[i], &number);
+            switch (ret) {
+                case ESP_OK:
+                    for (int8_t j = 5; j >= 0; j--){
+                        number = number >> 8;
+                        sensors[i].address[j] = number & 255;
+                    }
+                    printf("%s Done\n", sensors_nvs_key[i]);
+                    break;
+                case ESP_ERR_NVS_NOT_FOUND:
+                    printf("%s is not initialized yet!\n", sensors_nvs_key[i]);
+                    break;
+                default :
+                    printf("Error (%s) reading!\n", esp_err_to_name(ret));
+            }
+        }
         nvs_close(nvs_handle);
     }
+
+    nvs_stats_t nvs_stats;
+    nvs_get_stats(NULL, &nvs_stats);
+    printf("Count: UsedEntries = (%d), FreeEntries = (%d), AllEntries = (%d)\n",
+            nvs_stats.used_entries, nvs_stats.free_entries, nvs_stats.total_entries);
 
     // init rest server
     ESP_ERROR_CHECK(wifi_connect());
@@ -1272,6 +1423,8 @@ void app_main(){
         ledc_channel_config(&ledc_channel[ch]);
     }
     ledc_fade_func_install(0);
+
+    xTaskCreate(increment_sensor_beeps_task, "increment_beeps", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_increment_beeps);
 
     ESP_LOGI("app-main", "inicialization end");
 }

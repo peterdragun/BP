@@ -33,6 +33,9 @@
 extern state_enum_t *security_state;
 extern scan_enum_t *scan_type_ptr;
 extern char expected_code[19];
+extern uint8_t unknown_sensor[6];
+extern uint8_t number_of_sensors;
+extern sensor_t sensors[MAX_NUMBER_OF_SENSORS];
 
 typedef struct rest_server_context {
     char scratch[SCRATCH_BUFSIZE];

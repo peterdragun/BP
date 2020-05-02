@@ -30,6 +30,9 @@
 #define CONNECTED_BITS (GOT_IPV4_BIT)
 #endif
 
+extern char wifi_ssid[32];
+extern char wifi_pass[64];
+
 esp_err_t wifi_connect(void);
 
 #endif

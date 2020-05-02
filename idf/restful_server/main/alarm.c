@@ -148,27 +148,37 @@ esp_err_t arm_system(){
 
 void compare_codes(){
     if ((entered_code[0] == '*') && (strlen(entered_code) == 1)){
-        arm_system();
+        if(*security_state == Disarmed){
+            arm_system();
+        }else if(*security_state == Setup){
+            *security_state = Disarmed;
+            // TODO beep?
+        }
     }else if (!strcmp(expected_code, entered_code)){
-        if(*security_state == Activating){
-            vTaskDelete(xHandle_activate);
-        }else if(*security_state == Alarm){
-            vTaskDelete(xHandle_alarm);
-        }else if(*security_state != Armed){
-            xTaskCreate(stop_alarm_task, "stop_alarm", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
-            vTaskDelete(xHandle_search);
-            ESP_LOGW(SECURITY_SYSTEM, "Security system is not activated!");
-            memset(entered_code, 0, sizeof(entered_code));
-            return;
+        if(*security_state == Disarmed){
+            *security_state = Setup;
+            // TODO beep?
+        }else{
+            if(*security_state == Activating){
+                vTaskDelete(xHandle_activate);
+            }else if(*security_state == Alarm){
+                vTaskDelete(xHandle_alarm);
+            }else if(*security_state != Armed){
+                xTaskCreate(stop_alarm_task, "stop_alarm", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+                vTaskDelete(xHandle_search);
+                ESP_LOGW(SECURITY_SYSTEM, "Security system is not activated!");
+                memset(entered_code, 0, sizeof(entered_code));
+                return;
+            }
+            ESP_LOGI(SECURITY_SYSTEM, "System disarmed");
+            *wrong_attempts_ptr = 0;
+            // make sure buzzer stopped beeping
+            for (int ch = 0; ch < LEDC_CH_NUM; ch++) {
+                ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
+                ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+            }
+            *security_state = Disarmed;
         }
-        ESP_LOGI(SECURITY_SYSTEM, "System disarmed");
-        *wrong_attempts_ptr = 0;
-        // make sure buzzer stopped beeping
-        for (int ch = 0; ch < LEDC_CH_NUM; ch++) {
-            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
-            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
-        }
-        *security_state = Disarmed;
     }else{
         ESP_LOGW(SECURITY_SYSTEM, "Wrong code!!!");
         if(*security_state == Armed){
