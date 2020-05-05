@@ -2,6 +2,7 @@
 
 state_enum_t security = Disarmed;
 state_enum_t *security_state = &security;
+time_t last_alarm = 0;
 
 int keypad_col = 0;
 
@@ -40,6 +41,31 @@ ledc_channel_config_t ledc_channel[LEDC_CH_NUM] = {
 TaskHandle_t xHandle_alarm;
 TaskHandle_t xHandle_activate;
 TaskHandle_t xHandle_search;
+
+char *state_to_str(){
+    char *state;
+    switch (*security_state){
+    case Setup:
+        state = "Setup";
+        break;
+    case Disarmed:
+        state = "Disarmed";
+        break;
+    case Activating:
+        state = "Activating";
+        break;
+    case Armed:
+        state = "Armed";
+        break;
+    case Alarm:
+        state = "Alarm";
+        break;
+    default:
+        state = "Unknown";
+        break;
+    }
+    return state;
+}
 
 void activate_security(){
     int ch;
@@ -116,6 +142,21 @@ void stop_alarm_task(){
     vTaskDelete(NULL);
 }
 
+void long_beep(){
+    int ch;
+    for (ch = 0; ch < LEDC_CH_NUM; ch+=2) {
+        ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, LEDC_DUTY);
+        ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+    }
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+
+    for (ch = 0; ch < LEDC_CH_NUM; ch+=2) {
+        ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
+        ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+    }
+    vTaskDelete(NULL);
+}
+
 void search_devices_task(){
     uint32_t duration = 5; // in seconds
     *scan_type_ptr = Search_known;
@@ -152,15 +193,18 @@ void compare_codes(){
             arm_system();
         }else if(*security_state == Setup){
             *security_state = Disarmed;
-            // TODO beep?
+            ESP_LOGI(SECURITY_SYSTEM, "System disarmed");
+            xTaskCreate(long_beep, "long_beep", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
         }
     }else if (!strcmp(expected_code, entered_code)){
         if(*security_state == Disarmed){
             *security_state = Setup;
-            // TODO beep?
+            ESP_LOGI(SECURITY_SYSTEM, "System in setup");
+            xTaskCreate(long_beep, "long_beep", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
         }else{
             if(*security_state == Activating){
                 vTaskDelete(xHandle_activate);
+                xTaskCreate(stop_alarm_task, "stop_alarm", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
             }else if(*security_state == Alarm){
                 vTaskDelete(xHandle_alarm);
             }else if(*security_state != Armed){

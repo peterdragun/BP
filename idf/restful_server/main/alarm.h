@@ -39,17 +39,12 @@
 
 #define SECURITY_SYSTEM       "SECURITY_SYSTEM"
 
-#define MAX_NUMBER_OF_SENSORS 5
-
 typedef enum state_enum {Setup, Disarmed, Activating, Armed, Alarm} state_enum_t;
 typedef enum scan_enum {Just_scan, Add_new, Search_known} scan_enum_t;
 
 extern scan_enum_t *scan_type_ptr;
 
-typedef struct{
-    uint8_t address[6];
-    uint8_t missed_beeps;
-} sensor_t;
+char *state_to_str();
 
 void activate_security();
 

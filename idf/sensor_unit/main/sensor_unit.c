@@ -640,9 +640,9 @@ void app_main(void)
     rtc_gpio_isolate(GPIO_NUM_12);
 #endif
 
-    printf("Entering deep sleep\n");
     gettimeofday(&sleep_enter_time, NULL);
 
+    ESP_LOGI(GATTC_TAG, "Entering deep sleep...");
     esp_deep_sleep_start();
 }
 
