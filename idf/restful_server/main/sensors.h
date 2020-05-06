@@ -21,6 +21,7 @@ extern time_t last_alarm;
 typedef struct{
     uint8_t address[6];
     uint8_t missed_beeps;
+    time_t last_connection;
     time_t last_alarm;
 } sensor_t;
 

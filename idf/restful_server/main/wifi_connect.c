@@ -18,11 +18,19 @@ static EventGroupHandle_t s_connect_event_group;
 static esp_netif_t *s_example_esp_netif = NULL;
 static const char *s_connection_name;
 esp_ip4_addr_t s_ip_addr;
+int retry = 0;
+
+static void stop(void);
 
 static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
 {
-    ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...");
+    retry++;
+    ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...(%d/3)", retry);
+    if (retry == 3){
+        esp_wifi_stop();
+        return;
+    }
     esp_err_t err = esp_wifi_connect();
     if (err == ESP_ERR_WIFI_NOT_STARTED) {
         return;
@@ -131,9 +139,10 @@ esp_err_t wifi_connect(void)
     }
     s_connect_event_group = xEventGroupCreate();
     start();
+    retry = 0;
     ESP_ERROR_CHECK(esp_register_shutdown_handler(&stop));
     ESP_LOGI(TAG, "Waiting for IP");
-    xEventGroupWaitBits(s_connect_event_group, CONNECTED_BITS, true, true, portMAX_DELAY);
+    xEventGroupWaitBits(s_connect_event_group, CONNECTED_BITS, true, true, 1000);
     ESP_LOGI(TAG, "Connected to %s", s_connection_name);
     ESP_LOGI(TAG, "IPv4 address: " IPSTR, IP2STR(&s_ip_addr));
 #ifdef CONFIG_EXAMPLE_CONNECT_IPV6

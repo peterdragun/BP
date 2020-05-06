@@ -163,6 +163,36 @@ static esp_err_t add_device_post_handler(httpd_req_t *req){
     return ESP_OK;
 }
 
+static esp_err_t rssi_device_post_handler(httpd_req_t *req){
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (check_state(req) != ESP_OK){
+        return ESP_FAIL;
+    }
+    int total_len = req->content_len;
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        return ESP_FAIL;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+            return ESP_FAIL;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+
+    cJSON *root = cJSON_Parse(buf);
+    rssi = cJSON_GetObjectItem(root, "rssi")->valueint;
+    httpd_resp_sendstr(req, "Code was successfully changed");
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
 static esp_err_t change_code_post_handler(httpd_req_t *req){
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     if (check_state(req) != ESP_OK){
@@ -275,6 +305,7 @@ static esp_err_t sensors_list_get_handler(httpd_req_t *req){
         json_obj = cJSON_CreateObject();
         cJSON_AddStringToObject(json_obj, "address", (const char*)address);
         cJSON_AddNumberToObject(json_obj, "last_alarm", sensors[i].last_alarm);
+        cJSON_AddNumberToObject(json_obj, "last_connection", sensors[i].last_connection);
         cJSON_AddItemToArray(json_list, json_obj);
     }
     cJSON_AddItemToObject(root_json_obj, "list", json_list);
@@ -436,6 +467,14 @@ esp_err_t start_rest_server(){
         .user_ctx = rest_context
     };
     httpd_register_uri_handler(server, &ble_add_device_post_uri);
+
+    httpd_uri_t ble_rssi_device_post_uri = {
+        .uri = "/ble/device/rssi",
+        .method = HTTP_POST,
+        .handler = rssi_device_post_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &ble_rssi_device_post_uri);
 
     httpd_uri_t ble_remove_device_post_uri = {
         .uri = "/ble/device/remove",

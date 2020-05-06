@@ -36,6 +36,7 @@ esp_err_t record_sensor(uint8_t *address){
         return ESP_FAIL;
     }
     sensors[idx].missed_beeps = 0;
+    time(&sensors[idx].last_connection);
     return ESP_OK;
 }
 
@@ -66,6 +67,7 @@ esp_err_t add_new_sensor(uint8_t *address){
         nvs_close(nvs_handle);
         ESP_LOGI(SENSORS_TAG, "Done");
     }
+    sensors[number_of_sensors].last_connection = 0;
     sensors[number_of_sensors].missed_beeps = 0;
     sensors[number_of_sensors].last_alarm = 0;
     number_of_sensors++;

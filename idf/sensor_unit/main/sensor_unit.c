@@ -58,7 +58,7 @@ uint8_t *security_state_ptr = &security_state;
 
 static esp_ble_scan_params_t ble_scan_params = {
     .scan_type              = BLE_SCAN_TYPE_ACTIVE,
-    .own_addr_type          = BLE_ADDR_TYPE_RANDOM,
+    .own_addr_type          = BLE_ADDR_TYPE_PUBLIC,// BLE_ADDR_TYPE_RANDOM,
     .scan_filter_policy     = BLE_SCAN_FILTER_ALLOW_ALL,
     .scan_interval          = 0x50,
     .scan_window            = 0x30,
@@ -298,8 +298,9 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
     case ESP_GATTC_READ_CHAR_EVT:
         ESP_LOGI(GATTC_TAG, "ESP_GATTC_READ_CHAR_EVT");
         if(p_data->read.value_len == 1){
+            ESP_LOGI(GATTC_TAG, "Security state: %d", p_data->read.value[0]);
             *security_state_ptr = p_data->read.value[0];
-            if(*security_state_ptr == 3){ // write just on Armed state
+            if(*security_state_ptr == 3 || *security_state_ptr == 4){ // write just on Armed and Alarm state
                 esp_ble_gattc_search_service(gattc_if, param->cfg_mtu.conn_id, &remote_filter_report_service_uuid);
             }else{
                 *alarm_ptr = 0;

@@ -1,13 +1,13 @@
 \chapter{Úvod}
 
-V súčasnosti je čoraz častejšie zabezpečiť si svoj dom alebo byt aj inými technológiami ako sú mechanické zabezpečenie. To je často jednoduché prekonať a odradí len časť potenciálnych zlodejov. Rozšírením pre tento systém môže byť napríklad domáce zabezpečovacie zariadenie alebo presnejšie elektronický zabezpečovací systém. Vďaka tomuto systému je možné identifikovať prítomnosť zlodeja aj po prekonaní mechanických systémov. Takéto zariadenia sú stále dostupnejšie a inteligentnejšie. Pri každom príchode a odchode z domu je však nutné tento systém zapnúť, respektíve vypnúť. To môže byť často otravné. Nutnosť stále zadávať kód a zároveň nezabudnúť toto zariadenie aktivovať. Preto som sa rozhodol zamyslieť sa nad otázkou: Čo ak by zariadenie dokázalo detekovať prítomnosť majiteľa pri priblížení k objektu a detekovať jeho odchod?
+V súčasnosti je čoraz častejšie zabezpečovať si svoj dom alebo byt aj inými technológiami ako je mechanické zabezpečenie. To je často jednoduché prekonať a odradí len časť potenciálnych zlodejov. Rozšírením pre tento systém môže byť napríklad domáce zabezpečovacie zariadenie alebo presnejšie elektronický zabezpečovací systém. Vďaka tomuto systému je možné identifikovať prítomnosť zlodeja aj po prekonaní mechanických systémov. Takéto zariadenia sú stále dostupnejšie a inteligentnejšie. Pri každom príchode a odchode z domu je však nutné tento systém zapnúť, respektíve vypnúť. To môže byť často otravné. Nutnosť stále zadávať kód a zároveň nezabudnúť toto zariadenie aktivovať. Preto som sa rozhodol zamyslieť sa nad otázkou: Čo ak by zariadenie dokázalo detekovať prítomnosť majiteľa pri priblížení k objektu a detekovať jeho odchod?
 
 Cieľom práce je vytvoriť zabezpečovacie zariadenie, ktoré pomocou Bluetooth dokáže detekovať prítomnosť majiteľa~-~jeho telefónu, hodiniek a podobne. Použitie Bluetooth je vhodné hlavne vďaka množstvu zariadení, ktoré ho podporujú. Ide hlavne o nositeľné zariadenia a zariadenia, ktoré majú ľudia stále pri sebe.
 Súčasťou práce bude zároveň aj vytvoriť mobilnú aplikáciu, ktorá bude slúžiť na nastavenie systému a jeho správu. Podporovať by mala najrozšírenejšie mobilné operačné systémy ako Android a iOS.
 
 \chapter{Zabezpečovacie systémy}
 
-Vo všeobecnosti sa medzi k zabezpečovacej technike radí viacero systémov zabezpečovania. Patria sem napríklad mechanické zábranné systémy (zámok, plot a pod.), elektronické zabezpečovacie systémy (EZS), elektronická požiarna signalizácia, systémy priemyselnej televízie (CCTV) a IP kamerové systémy. V tejto práci sa ďalej zameriam na elektronické zabezpečovacie systémy, ich využitie v domoch a bytoch. Ďalšie zabezpečovacie systémy sú spomenuté len stručne ako možné rozšírenia systému, keďže moderné zabezpečovacie systémy sa často spájajú do jedného systému, ktorý dokáže ochrániť domácnosť nie len pred zlodejmi ale aj prírodnými živlami.
+Vo všeobecnosti sa k zabezpečovacej technike radí viacero systémov zabezpečovania. Patria sem napríklad mechanické zábranné systémy (zámok, plot a pod.), elektronické zabezpečovacie systémy (EZS), elektronická požiarna signalizácia, systémy priemyselnej televízie (CCTV) a IP kamerové systémy. V tejto práci sa ďalej zameriam na elektronické zabezpečovacie systémy, ich využitie v domoch a bytoch. Ďalšie zabezpečovacie systémy sú spomenuté len stručne ako možné rozšírenia systému, keďže moderné zabezpečovacie systémy sa často spájajú do jedného systému, ktorý dokáže ochrániť domácnosť nie len pred zlodejmi ale aj prírodnými živlami.
 
 \section{Elektronické zabezpečovacie systémy}
 
@@ -106,7 +106,7 @@ Keďže najjednoduchším spôsobom ako preniknúť do stráženého objektu je 
     \item \textit{akustické detektory rozbitia skla} - detekujú zvuk rozbitia skla pomocou mikrofónu. Majú dosah až 10 m od stráženého skla. Sú náchylnejšie na falošné poplachy, ktoré môže vyvolať zvoniaci telefón, rozbitie skla vonku či brzdenie električky.
 \end{itemize}
 
-\subsubsection{Pasívne infračervené detektory}
+\subsubsection{Pasívne infračervené detektory}\label{sec:pir}
 
 Pasívne infračervené detektory (PIR – Passive Infrared Receiver) snímajú zmeny v infračervenom pásme elektromagnetického vlnenia vo svojom okolí, na ich základe následne vyhodnocujú narušenie. Využíva sa pyroelektrický senzor, ktorý reaguje na pohybujúce sa teleso s teplotou odlišnou od teploty okolia. Ten je doplnený o optický systém, ktorý má funkciu zosilnenia signálu a zvýšenie citlivosti senzora. Využívajú sa Fresnelové šošovky alebo často sústava lomených zrkadiel napríklad tzv. čierne zrkadlo, ktoré neodráža viditeľne svetlo, ale naopak dobre odráža žiarenie vygenerované ľudským telom. PIR detektor je najcitlivejší na pohyb kolmý na optickú os detektora. Tieto detektory sú veľmi populárne najmä vďaka ich pomerne jednoduchej konštrukcii a nízkej cene. Ich výhodou je tiež, že dokážu detekovať prítomnosť človeka bez ožarovania elektromagnetickým vlnením, na ktoré môžu byť ľudia citlivý.\cite{velas_ezs}
 
@@ -115,28 +115,28 @@ V prípade EZS stupňa 3 a 4 (definované v tabuľke \ref{tab:stupenzabezpecenia
 Na trhu sú dostupné detektory s rôznymi detekčnými charakteristikami (vejár, chodba, záves),
 ktorých typ závisí od použitia danej šošovky. Ich detekčné charakteristiky môžeme vidieť na obrázkoch \ref{fig:pir-vejar}, \ref{fig:pir-zaclona}, \ref{fig:pir-chodba} a \ref{fig:pir-strop}. Kde v ľavej časti môžeme vidieť pohľad zhora a v pravej časti pohľad zo strany.
 
-\begin{figure}[ht]
+\begin{figure}[!ht]
     \centering
     \includegraphics[width=0.75\linewidth]{obrazky-figures/PIR-vejar.png}
     \caption{Detekčná charakteristika PIR typu vejár\cite{PIR-vejar}}
     \label{fig:pir-vejar}
 \end{figure}
 
-\begin{figure}[ht]
+\begin{figure}[!ht]
     \centering
     \includegraphics[width=0.75\linewidth]{obrazky-figures/PIR-zaclona.png}
     \caption{Detekčná charakteristika PIR typu záclona\cite{velas_ezs}}
     \label{fig:pir-zaclona}
 \end{figure}
 
-\begin{figure}[ht]
+\begin{figure}[!ht]
     \centering
     \includegraphics[width=0.75\linewidth]{obrazky-figures/PIR-chodba.png}
     \caption{Detekčná charakteristika PIR typu chodba\cite{velas_ezs}}
     \label{fig:pir-chodba}
 \end{figure}
 
-\begin{figure}[ht]
+\begin{figure}[!ht]
     \centering
     \includegraphics[width=0.75\linewidth]{obrazky-figures/PIR-strop.jpg}
     \caption{Detekčná charakteristika stropného PIR senzora\cite{PIR-strop}}
@@ -153,7 +153,7 @@ Vychádzajú z rovnakého princípu ako ultrazvukové detektory, pracujú však 
 
 \subsubsection{Duálne detektory}
 
-Ide o spojenie PIR a ultrazvukového, prípadne mikrovlnného detektoru. Myšlienka za spojením je že, je malá pravdepodobnosť súčasného vzniku javov, ktoré by mohli vyvolať falošný poplach pri viacerých čidlách pracujúcich na rozdielnych fyzikálnych princípoch. Zároveň zvyšujú odolnosť voči poruchám. Detektory často umožňujú dve nastavenia - poplach sa spustí pri reakcii oboch čidiel alebo na vyvolanie poplachu stačí ľubovoľný detektor.\cite{velas_ezs}
+Ide o spojenie PIR a ultrazvukového, prípadne mikrovlnného detektoru. Myšlienka za spojením je, že je malá pravdepodobnosť súčasného vzniku javov, ktoré by mohli vyvolať falošný poplach pri viacerých čidlách pracujúcich na rozdielnych fyzikálnych princípoch. Zároveň zvyšujú odolnosť voči poruchám. Detektory často umožňujú dve nastavenia - poplach sa spustí pri reakcii oboch čidiel alebo na vyvolanie poplachu stačí ľubovoľný detektor.\cite{velas_ezs}
 
 \subsection{Overovanie spojenia}
 
@@ -181,7 +181,7 @@ Ovládacie prvky slúžia na uvedenie systému do stavu stráženia alebo do sta
     \item \textbf{blokovací zámok} - kombinuje mechanické zabezpečenie vstupných dverí s ovládaním EZS. Pri odomknutí dverí sa systém automaticky uvedie do stavu odstrážené. Zároveň pri zamykaní sa systém uvedie do stavu zabezpečené. Zámok je pritom možné uzamknúť len ak je EZS v normálnom stave. Použitie je prirodzené a jednoduché. Ide o jeden z najnákladnejších spôsobov ovládania systému.
     \item \textbf{spínací zámok} - podobný blokovaciemu zámku, neobsahuje systém blokovania uzamknutia dverí v prípade poruchy či chyby obsluhy (napríklad otvorené okno)
     \item \textbf{kódové klávesnice} - je nutné aby elektronika klávesnice bola umiestnená v strážených priestoroch. Prináša nevýhodu, že užívateľ si musí zapamätať kód. Ten je však potrebné pravidelne meniť.
-    \item \textbf{ovládanie kartou} - výhodou je multifunkčnosť karty a teda možnosť využiť ju na ďalšie použitie ako obedy, dochádzkový systém, parkovanie a podobne. Nevýhodou je prenosnosť karty, prípadne možnosť jej skopírovania.
+    \item \textbf{ovládanie kartou} - výhodou je multifunkčnosť karty, a teda možnosť využiť ju na ďalšie použitie ako obedy, dochádzkový systém, parkovanie a podobne. Nevýhodou je prenosnosť karty, prípadne možnosť jej skopírovania.
     \item \textbf{diaľkové ovládanie} - musí byť chránené vhodným kódom, aby sa nedal zachytiť jeho signál a vyrobiť kópia. Môže byť doplnené aj o ďalšie funkcie ako spustenie tiesňového hlásenia a pod.\cite{velas_ezs}
 \end{itemize}
 
@@ -241,7 +241,7 @@ Bluetooth Low Energy dokáže pracovať s tromi rôznymi topológiami siete:
 \end{itemize}
 
 \section{Architektúra} \label{sec:arch}
-Bluetooth implementuje kompletnú architektúru od fyzickej komunikácie medzi zariadeniami až po komunikáciu s vlastnými aplikáciami, Bluetooth je teda takzvaný \textit{full protocol stack}. Kompletnú architektúru môžeme vidieť na obrázku \ref{fig:ble_stack}.
+Bluetooth implementuje kompletnú architektúru od fyzickej komunikácie medzi zariadeniami až po komunikáciu s vlastnými aplikáciami. Bluetooth je teda takzvaný \textit{full protocol stack}. Kompletnú architektúru môžeme vidieť na obrázku \ref{fig:ble_stack}.
 
 \begin{figure}[ht]
     \centering
@@ -254,8 +254,8 @@ Bluetooth implementuje kompletnú architektúru od fyzickej komunikácie medzi z
     \item \textbf{Physical Layer (PHY)} - fyzická vrstva, prenáša samotný analógový signál a transformuje ho na digitálny. Od Bluetooth v5.0 rozlišujeme 3 varianty PHY. Sú to:
     \begin{itemize}
         \item LE 1M - rýchlosť prenosu dát 1~Mb/s, pôvodná PHY definovaná v Bluetooth v4.0, chyby dokáže detekovať, ale nie opraviť
-        \item LE 2M - rýchlosť 2~Mb/s, vzdialenosť prenosu je oproti LE 1M zmenšená na 80\%, chyby dokáže detekovať, ale nie opraviť
-        \item LE Coded - dokáže teoreticky zvýšiť vzdialenosť prenosu dvoj až štvornásobne, a to pomocou redundancie dát v odosielanom pakete. Vďaka tomu zariadenie na druhej strane dokáže detekovať a opraviť chyby v dátach. Existujú dve varianty v závislosti na úrovni redundancie - S=2 a S=8, kde S udáva počet redundantných dát v odosielanom pakete. To ma však nepriaznivý vplyv na rýchlosť odosielania, ktorá je znížená na 500~Kb/s, resp. pre S=8 na 125~Kb/s. 
+        \item LE 2M - rýchlosť 2~Mb/s, vzdialenosť prenosu je oproti LE 1M zmenšená na 80~\%, chyby dokáže detekovať, ale nie opraviť
+        \item LE Coded - dokáže teoreticky zvýšiť vzdialenosť prenosu dvoj až štvornásobne, a to pomocou redundancie dát v odosielanom pakete. Vďaka tomu zariadenie na druhej strane dokáže detekovať a opraviť chyby v dátach. Existujú dva varianty v závislosti na úrovni redundancie - S=2 a S=8, kde S udáva počet redundantných dát v odosielanom pakete. To ma však nepriaznivý vplyv na rýchlosť odosielania, ktorá je znížená na 500~Kb/s, resp. pre S=8 na 125~Kb/s. 
     \end{itemize}
     \item \textbf{Link Layer} - linková vrstva, jej úlohou je skenovanie, spravuje, vytvára spojenia
     \item \textbf{Direct Test Mode} - umožňuje testovanie fyzickej vrstvy
@@ -275,8 +275,8 @@ Rozsah pokrytia Bluetooth je závislý na viacerých faktoroch. Teoreticky je mo
 
 \section{Generic Access Profile (GAP)}\label{sec:gap}
 
-Ide o základný profil, ktorý implementujú všetky Bluetooth zariadenia. Definuje základne požiadavky zariadenia. Vyskytuje sa ako v klasickej (BR/EDR) verzii tak aj v Low Energy. Pre BLE definuje jednotlivé vrstvy architektúry, správanie a metódy pre vyhľadanie zariadenia, pripojenie k nemu, bezpečnosť a podobne.
-Zároveň definuje 4 špecifické roly, pričom zariadenie môže podporovať viacero rolí súčasne. Každá z rolí je optimalizovaná je špecifické použitie. Sú to:
+Ide o základný profil, ktorý implementujú všetky Bluetooth zariadenia. Definuje základné požiadavky zariadenia. Vyskytuje sa ako v klasickej (BR/EDR) verzii tak aj v Low Energy. Pre BLE definuje jednotlivé vrstvy architektúry, správanie a metódy pre vyhľadanie zariadenia, pripojenie k nemu, bezpečnosť a podobne.
+Zároveň definuje 4 špecifické roly, pričom zariadenie môže podporovať viacero rolí súčasne. Každá z rolí je optimalizovaná na špecifické použitie. Sú to:
 \begin{itemize}
     \item \textbf{Broadcaster} - vysielanie dát, nepodporuje spojenia
     \item \textbf{Observer} - prijímanie dát, komplementárny k Broadcaster, nepodporuje spojenia
@@ -347,14 +347,14 @@ ESP32 je dostupné v niekoľkých verziách. Tie môžeme v základe rozdeliť n
     \begin{subfigure}{.3\textwidth}
       \centering
       \includegraphics[width=.8\linewidth]{obrazky-figures/esp-soc.png}  
-      \caption{SoC}
+      \caption{SoC\footnotemark[2]}
       %https://www.gridconnect.com/products/esp32-d0wdq6-2-4-ghz-wi-fi-bluetooth-combo-chip
       \label{fig:esp32_soc}
     \end{subfigure}
     \begin{subfigure}{.3\textwidth}
       \centering
       \includegraphics[width=.8\linewidth]{obrazky-figures/esp-module.jpg}  
-      \caption{Modul}
+      \caption{Modul\footnotemark[3]}
       %https://www.blueberrye.me/compute-boards/esp-wroom-32-esp32-wifi-bt-ble-mcu-module/a-1690130
       \label{fig:esp32_module}
     \end{subfigure}
@@ -369,6 +369,9 @@ ESP32 je dostupné v niekoľkých verziách. Tie môžeme v základe rozdeliť n
     \label{fig:esp32_varianty}
 \end{figure}
 
+\footnotetext[2]{prevzaté z: https://www.gridconnect.com/products/esp32-d0wdq6-2-4-ghz-wi-fi-bluetooth-combo-chip}
+\footnotetext[3]{prevzaté z: https://www.blueberrye.me/compute-boards/esp-wroom-32-esp32-wifi-bt-ble-mcu-module/a-1690130}
+\footnotetext[4]{prevzaté z: https://navody.arduino-shop.cz/navody-k-produktum/vyvojova-deska-esp32.html}
 
 \section{Programovanie}
 
@@ -382,7 +385,7 @@ Jedno z možností je aj použitie MicroPython, ktorý je založený na Pythone 
 
 ESP32 podporuje niekoľko režimov spánku čo pomáha ešte viac zmenšovať jeho spotrebu. V tabuľke \ref{tab:spotreba_esp} je možné vidieť porovnanie jednotlivých módov šetrenia energie. V poslednom stĺpci tabuľky sú uvedené len pridané časti, takže pre aktuálny riadok platí to isté čo pre predchádzajúci plus naviac informácie v tomto riadku.
 
-Ako prvý je pre porovnanie uvedený aktívny mód a teda základný mód so všetkými aktívnymi časťami. V prípade súčasného využitia Wi-Fi a Bluetooth môže spotreba dosahovať v špičke až 790~mAh. Pri móde s uspatým modemom (modem sleep) sú neaktívne Wi-Fi, Bluetooth, rádio vysielač a periférie. Je možné nastaviť frekvenciu procesora a upraviť tak spotrebu. V ľahkom spánku (light sleep) je naviac pozastavený procesor, dochádza k uloženiu obsahu RAM. Pri prebudení sa systém vráti do predchádzajúceho stavu. V hlbokom spánku (deep sleep) je procesor úplne vypnutý, koprocesor stále sleduje zmeny na senzoroch a prebúdza procesor. Narozdiel od ľahkého spánku nedochádza k automatickej obnove pamäti RAM. Stále je však možné využiť RTC pamäť na uloženie a znovu načítanie dát pri prebudení. Pri hibernácii (hibernation) je naviac odstavený aj koprocesor a RTC pamäť. Všetko okrem jedného časovača a niektorých vstupných RTC je vypnuté. Tie sú zodpovedné za prebudenie systému.\cite{esp-sleep}
+Ako prvý je pre porovnanie uvedený aktívny mód, a teda základný mód so všetkými aktívnymi časťami. V prípade súčasného využitia Wi-Fi a Bluetooth môže spotreba dosahovať v špičke až 790~mAh. Pri móde s uspatým modemom (modem sleep) sú neaktívne Wi-Fi, Bluetooth, rádio vysielač a periférie. Je možné nastaviť frekvenciu procesora a upraviť tak spotrebu. V ľahkom spánku (light sleep) je naviac pozastavený procesor, dochádza k uloženiu obsahu RAM. Pri prebudení sa systém vráti do predchádzajúceho stavu. V hlbokom spánku (deep sleep) je procesor úplne vypnutý, koprocesor stále sleduje zmeny na senzoroch a prebúdza procesor. Narozdiel od ľahkého spánku nedochádza k automatickej obnove pamäti RAM. Stále je však možné využiť RTC pamäť na uloženie a znovu načítanie dát pri prebudení. Pri hibernácii (hibernation) je naviac odstavený aj koprocesor a RTC pamäť. Všetko okrem jedného časovača a niektorých vstupných RTC je vypnuté. Tie sú zodpovedné za prebudenie systému.\cite{esp-sleep}
 
 \begin{table}[ht]
     \centering
@@ -390,8 +393,8 @@ Ako prvý je pre porovnanie uvedený aktívny mód a teda základný mód so vš
     \begin{tabular}{|c|c|c|}
         \hline
         Mód & Spotreba & Pridané neaktívne časti \\ \hline
-        Active & 80-260 mA\footnotemark & - \\ \hline
-        Modem sleep & 3-20 mA & Wi-Fi, Bluetooth, periférie, vysielač\\ \hline
+        Active & 80~-~260 mA\footnotemark[5] & - \\ \hline
+        Modem sleep & 3~-~20 mA & Wi-Fi, Bluetooth, periférie, vysielač\\ \hline
         Light sleep & 0,8 mA & pozastavený procesor\\ \hline
         Deep sleep & 10 $\mu$A & procesor\\ \hline
         Hibernation & 2.5 $\mu$A & koprocesor\\ \hline
@@ -399,7 +402,7 @@ Ako prvý je pre porovnanie uvedený aktívny mód a teda základný mód so vš
     \caption{Porovnanie spotreby v jednotlivých módoch\cite{esp-sleep}}
     \label{tab:spotreba_esp}
 \end{table}
-\footnotetext{V prípade zasielania dát pomocou Wi-Fi alebo Bluetooth je spotreba vyššia ako pri prijímaní}
+\footnotetext[5]{V prípade zasielania dát pomocou Wi-Fi alebo Bluetooth je spotreba vyššia ako pri prijímaní}
 
 \chapter{Návrh prototypu}
 
@@ -431,8 +434,8 @@ Navrhované stavy zahrňujú:
     \item \textbf{konfigurácia} - stav určený pre konfiguráciu samotného systému. V tomto stave je možné zmeniť kód, ktorým sa zariadenia dokáže prepnúť zo stavu zabezpečené naspäť do stavu odstrážené. Zároveň je možné zmeniť známe zariadenia, nastavenia Wi-Fi siete a podobne. 
     \item \textbf{odstrážené} - režim, v ktorom je systém pripravený kedykoľvek na prepnutie do stavu aktivácie systému. V tomto režime sa kontrolujú pripojené senzory, nie však ich výstup, ale len ich dostupnosť.
     \item \textbf{aktivácia} - prechodový stav trvajúci niekoľko sekúnd. Počas aktivácie systému ústredňa vydáva signalizáciu o tom, že je čo najskôr nutné opustiť strážené priestory. Zároveň ústredňa oznámi senzorom tento stav a tie sa presunú do stavu zabezpečené.
-    \item \textbf{zabezpečené} - po aktivácii sa systém automaticky prepne do stavu strážené. V tomto stave sa vyhodnocujú prijaté informácie z jednotlivých senzorov a v prípade, že je zaznamenané narušenie zmení sa stav na alarm. Zároveň v tomto režime opakovane prebieha aktívny sken okolia pre známe BLE zariadenia. V prípade, že sa takéto zariadenia nájde a ústredňa je schopná sa k nemu pripojiť, vykoná sa deaktivácia systému a teda zmena stavu na odstrážené. Druhým spôsobom prechodu do stavu odstrážené je zadaním správneho kódu na číselnej klávesnici. V prípade opakovaného zadania nesprávneho kódu prejde systém do stavu alarm.
-    \item \textbf{alarm} - nastane v prípade zaznamenania neoprávneného vstupu do objektu. Ústredňa spustí indikáciu alarmu. Z tohto stavu dá dostať jedine zadaním správneho kódu na číselnej klávesnici. Následne je systém uvedený do stavu odstrážené a je pripravený na ďalšie použitie.
+    \item \textbf{zabezpečené} - po aktivácii sa systém automaticky prepne do stavu strážené. V tomto stave sa vyhodnocujú prijaté informácie z jednotlivých senzorov a v prípade, že je zaznamenané narušenie zmení sa stav na alarm. Zároveň v tomto režime opakovane prebieha aktívny sken okolia pre známe BLE zariadenia. V prípade, že sa takéto zariadenia nájde a ústredňa je schopná sa k nemu pripojiť, vykoná sa deaktivácia systému, a teda zmena stavu na odstrážené. Druhým spôsobom prechodu do stavu odstrážené je zadaním správneho kódu na číselnej klávesnici. V prípade opakovaného zadania nesprávneho kódu prejde systém do stavu alarm.
+    \item \textbf{alarm} - nastane v prípade zaznamenania neoprávneného vstupu do objektu. Ústredňa spustí indikáciu alarmu. Z tohto stavu sa dá dostať jedine zadaním správneho kódu na číselnej klávesnici. Následne je systém uvedený do stavu odstrážené a je pripravený na ďalšie použitie.
 \end{itemize}
 
 Všetky spomínané stavy platia pre ústredňu systému. Pre jednotky so senzormi stačí pre jednoduchosť uvažovať len nad stavom stráženia a pohotovostných režimom. Tento režim môže chápať aj ako stav odstrážené, kedy senzory ústredni len oznamujú, že nedošlo k žiadnej chybe, sú stále dostupné, teda overujeme integritu spojenia.
@@ -441,13 +444,13 @@ Všetky spomínané stavy platia pre ústredňu systému. Pre jednotky so senzor
 
 Ústredňu v tomto prípade tvorí vývojový modul s mikrokontrolérom ESP32. Ten je vhodný hlavne vďaka jeho dostupnosti a podpore všetkých potrebných technológií. Na modul sú následne pripojené jednotlivé signalizačné zariadenia ako je reproduktor (bzučiak) alebo ďalšie LED diódy a podobne. Tieto zariadenia informujú prevažne o zmenách stavu systému ako je napríklad prepínanie do módu stráženia. To je dôležité ako upozornenie pre majiteľa, že systém sa aktivuje, a teda by mal opustiť strážený priestor. V navrhovanom systéme je to hlavne dôležité, aby sa majiteľ dostal z dosahu hlavnej jednotky so svojím Bluetooth zariadením, inak by systém mohol nechcene prepnúť do režimu odstrážené.
 
-Pre napájanie systému je navrhnuté priame napájanie z elektrickej siete. To je potrebné hlavne z dôvodu súčasného využívania Wi-Fi a Bluetooth technológií, ktoré sú najviac náročné na spotrebu, ako bolo spomenuté v kapitole \ref{sec:esp-sleep}. Prípadne napájanie je vhodné realizovať pomocou kombinácie napájanie z elektrickej siete a batériou. V tomto prípade by sa primárne preferovala elektrická sieť, pri jej prípadnom výpadku by sa plynulo prešlo na záložnú batériu.
+Pre napájanie systému je navrhnuté priame napájanie z elektrickej siete. To je potrebné hlavne z dôvodu súčasného využívania Wi-Fi a Bluetooth technológií, ktoré sú najviac náročné na spotrebu, ako bolo spomenuté v kapitole \ref{sec:esp-sleep}. Prípadne napájanie je vhodné realizovať pomocou kombinácie napájania z elektrickej siete a batérie. V tomto prípade by sa primárne preferovala elektrická sieť, pri jej prípadnom výpadku by sa plynulo prešlo na záložnú batériu. V prípade výpadku energie by tak ústredňa dokázala naďalej vyhodnocovať informácie zo senzorov.
 
 \subsection{Pripojené zariadenia}
 
 Ústredňa sa okrem ESP32 skladá aj z ďalších zariadení, ktoré pomáhajú indikovať stavy systému, prípadne nejaký záložný systém v prípade vybitia BLE zariadenia, strata, odcudzenie a podobne. Týmto záložným systémom môže byť napríklad kódová klávesnica. Tá je vhodná hlavne vďaka jednoduchosti na použitie, zároveň so sebou nie je nutné nič nosiť, stačí si zapamätať kód.
 
-K indikačným zariadeniam môžme zaradiť LED diódy, reproduktor alebo bzučiak. Tieto zariadenia indikujú stav systému, prípadne zmenu stavu. Ústredňa by mala obsahovať minimálne jednu LED diódu, na indikáciu upozornenia a druhá dióda by mala slúžiť ako indikácia narušenia. V prípade aktivácie zabezpečenia systém opakovane bliká upozorňovacou diódou a vydáva tón, aby oznámil majiteľovi, že má opustiť priestor. V prípade alarmu sa aktivuje indikácia narušenia spolu s zvukový oznámením. Pri deaktivácii systému rozsvieti sa indikácia upozornenia a zároveň krátkym tónom sa ohlási zmena stavu na odstrážené.
+K indikačným zariadeniam môžme zaradiť LED diódy, reproduktor alebo bzučiak. Tieto zariadenia indikujú stav systému, prípadne zmenu stavu. Ústredňa by mala obsahovať minimálne jednu LED diódu, na indikáciu upozornenia a druhá dióda by mala slúžiť ako indikácia narušenia. V prípade aktivácie zabezpečenia systém opakovane bliká diódou určenou na upozornenie a vydáva tón, aby oznámil majiteľovi, že má opustiť priestor. V prípade alarmu sa aktivuje indikácia narušenia spolu so zvukový oznámením. Pri deaktivácii systému sa rozsvieti indikácia upozornenia a zároveň sa krátkym tónom ohlási zmena stavu na odstrážené.
 
 \subsection{Komunikácia so zariadeniami}
 
@@ -455,9 +458,9 @@ Okrem iného sa ústredňa stará o komunikáciu s uloženými zariadeniami. Pre
 
 \subsection{Štruktúra BLE služieb}\label{sec:BLE_struc}
 
-Ústredňa obsahuje 3 BLE služby. Tie sú rozdelené podľa ich funkcie na:
+Ústredňa obsahuje tri BLE služby. Tie sú rozdelené podľa ich funkcie na:
 \begin{itemize}
-    \item \textbf{služba stavu systému} - pomocou tejto služby senzory zisťujú stav systému a podľa neho upravujú svoje nastavenie. Zároveň slúži aj ako overenie, že senzor je dostupný a teda prečítal charakteristiku.
+    \item \textbf{služba stavu systému} - pomocou tejto služby senzory zisťujú stav systému a podľa neho upravujú svoje nastavenie. Zároveň slúži aj ako overenie, že senzor je dostupný, a teda prečítal charakteristiku.
     \item \textbf{služba alarmu} - slúži na zápis oznámenia o narušení. Senzor zapíše nenulovú hodnotu v prípade, že zaznamenal narušenie.
     \item \textbf{služba nastavenia systému} - využíva sa na počiatočné nastavenie systému. Slúži na komunikáciu s mobilným zariadením. Aplikácia odošle meno a heslo pre Wi-Fi sieť. Pri prečítaní systém vráti IP adresu ústredne.
 \end{itemize}
@@ -473,35 +476,55 @@ Každá služba obsahuje práve jednu charakteristiku, vlastné unikátne identi
 
 \section{Jednotka so senzorom}
 
-Hlavnou časťou jednotky so senzorom je ESP32, ktoré pomocou BLE komunikuje s ústredňou. Konkrétne spôsob komunikácie je popísaný v kapitole \ref{sec:komunikacia}. Okrem ESP je súčasťou jednotky aj samotný senzor a indikačná LED dióda. Tá sa rozsvieti v prípade, že je systém v stave zabezpečené a bolo zaznamenané narušenie priestoru. Táto jednotka by mala podporovať minimálne PIR senzor a magnetický senzor. Všeobecne by však zariadenie malo podporovať akýkoľvek senzor, ktorý pri zistení narušenia dá na výstup napätie na úrovni logickej 1 prípadne 0.
+Hlavnou časťou jednotky so senzorom je ESP32. Pre túto jednotku bola zvolená vývojová doska s konektorom na batériu s napätím až 3,7 voltov. ESP pomocou BLE komunikuje s ústredňou. Konkrétny spôsob komunikácie je popísaný v kapitole \ref{sec:komunikacia}. Okrem ESP je súčasťou jednotky aj samotný senzor a indikačná LED dióda. Tá sa rozsvieti v prípade, že je systém v stave zabezpečené a bolo zaznamenané narušenie priestoru. Táto jednotka by mala podporovať minimálne PIR senzor a magnetický senzor. Všeobecne by však zariadenie malo podporovať akýkoľvek senzor, ktorý pri zistení narušenia dá na výstup napätie na úrovni logickej 1 prípadne 0.
 
 \subsection{Použité senzory}
 
-Medzi použité senzory boli zaradené najdostupnejšie senzory. Zároveň bol dávaný dôraz aj na ich spotrebu. Senzory by pri tom mali byť schopné pri narušení oznámiť túto skutočnosť jednoduchým zmenením svojho výstupu na opačnú hodnotu.
+Medzi použité senzory boli zaradené najdostupnejšie senzory. Zároveň bol kladený dôraz aj na ich spotrebu. Senzory by pri tom mali byť schopné pri narušení oznámiť túto skutočnosť jednoduchým zmenením svojho výstupu na opačnú hodnotu.
 
+\subsubsection{PIR senzor}
 
+Pre PIR senzor bol vybraný senzor AM312, konkrétne modul zobrazený na obrázku \ref{fig:pir}. Je primárne navrhovaný na prácu pri izbových teplotách, s napätím do 3,6 V a prúdom do 100~$\mu$A. Dokáže pritom detekovať zmenu v infračervenom poli až na vzdialenosť 3~-~5 metrov s uhlom 100 až 130 stupňov v závislosti na osi. Vďaka tomu je senzor použiteľný v dvoch najbežnejších typoch - vejár a strop, viď rozdelenie typov PIR senzorov v kapitole \ref{sec:pir}.\cite{pir-datasheet}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[scale=0.5]{obrazky-figures/pir.jpg}
+    \caption[PIR senzor]{PIR senzor\footnotemark}
+    \label{fig:pir}
+\end{figure}
+\footnotetext{prevzaté z: \url{https://www.laskarduino.cz/arduino-micro-pir-detektor-pohybu-am312}}
+
+\subsubsection{Magnetický kontakt}
+
+Pre magnetický senzor bol vybraný senzor MC-38, zobrazený na obrázku \ref{fig:magneticky_senzor}. Ten bol zvolený vďaka jeho dostupnosti, cene a jednoduchosti inštalácie. Jeho operačná vzdialenosť je 15 až 25 mm. Ide o normálne uzavretý senzor, teda v prítomnosti magnetu je jazýčkový kontakt zopnutý.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[scale=0.1]{obrazky-figures/magneticky_senzor.jpg}
+    \caption[Magnetický senzor]{Magnetický senzor\footnotemark}
+    \label{fig:magneticky_senzor}
+\end{figure}
+\footnotetext{prevzaté z: \url{https://www.amazon.co.uk/Gikfun-Sensor-Magnetic-Switch-Arduino/dp/B0154PTDFI}}
 
 \subsection{Napájanie}
 
-Napájanie jednotky so senzorom by malo byť realizované pomocou batérie. Tým by sa mal systém stať jednoduchším na inštaláciu a prípadne zmeny umiestnenia jednotlivých senzorov. Je však nutné aby takéto napájanie vydržalo aspoň rok. Pri výpočte vhodnej kapacity musíme počítať so spotrebou ESP32 ako aj so spotrebou samotného senzoru. Môžme pritom uvažovať niekoľko stavov:
+Napájanie jednotky so senzorom bude realizované pomocou batérie. Tým sa systém stane jednoduchším na inštaláciu a prípadne zmeny umiestnenia jednotlivých senzorov. Je však nutné aby takéto napájanie vydržalo aspoň rok. Pri výpočte vhodnej kapacity musíme počítať so spotrebou ESP32 ako aj so spotrebou samotného senzoru. Môžme pritom uvažovať niekoľko stavov:
 \begin{itemize}
     \item systém je stále v stave \textit{odstrážené}. Zariadenie je v stave hlbokého spánku dlhšiu dobu.
     \item systém pravidelne strieda stavy. Ide o očakávané zaobchádzanie so systémom. Počíta s tým, že s tým že systém je rovnaký čas v oboch stavoch.
     \item systém je stále v stave \textit{zabezpečené}. Ide o extrém, kde je systém stále aktivovaný, teda hlboký spánok je obmedzený na kratšiu dobu. V tomto prípade je spotreba energie najvyššia.
 \end{itemize}
 
-Týmto rozdelením môžme získať minimálnu, priemernú a maximálnu spotrebu systému. 
-
-TODO: výpočet spotreby
+Týmto rozdelením môžme získať minimálnu, priemernú a maximálnu spotrebu systému. Podľa tabuľky \ref{tab:spotreba_esp} môžeme určiť, že spotreba modulu počas hlbokého spánku je 10~$\mu$A. Následne sa zariadenie prebudí a začne odosielať dáta pomocou BLE, je teda v aktívnom stave a keďže ide o odosielanie dát počítame s hornou hranicou 260~mA. Experimentami bolo zistené, že zariadenie ostane v aktívnom stave po dobu 3,2 sekúnd. Odber zariadenia pri prebúdzaní pri tom zanedbáme nakoľko ide o krátkodobú spotrebu a na výsledné meranie by nemala veľký vplyv. 
 
 \section{Komunikácia ústredne so senzormi}\label{sec:komunikacia}
 
-Pri komunikácií so senzormi sa využíva technológia BLE. Ústredňa vystupuje ako server, na ktorý sa pripájajú senzory ako klienti. V kapitole \ref{sec:BLE_struc} je opísaná štruktúra serveru. Klient sa najprv pripojí na server, následne zistí stav ústredne prečítaním hodnoty služby. Následne podľa zisteného stavu urobí jedno z:
+Pri komunikácií so senzormi sa využíva technológia BLE. Ústredňa vystupuje ako server, na ktorý sa pripájajú senzory ako klienti. V kapitole \ref{sec:BLE_struc} je opísaná štruktúra serveru. Klient sa najprv pripojí na server, následne zistí stav ústredne prečítaním hodnoty služby. Následne podľa zisteného stavu urobí jedno z nasledujúcich:
 \begin{itemize}
     \item ak je systém v stave konfigurácie alebo odstrážené, jednotka so senzorom sa uspí na 40 sekúnd. Senzor je v tomto prípade deaktivovaný. Tento spôsob je vhodný hlavne pre šetrenie batérie jednotky.
     \item v ostatných stavoch sa jednotka so senzorom uspí na 20 sekúnd. Zároveň sa aktivuje prebudenie jednotky pomocou senzora. V prípade prebudenia zo senzora sa na príslušnú službu serveru zapíše oznámenie o narušení.
 \end{itemize}
-Po oboch variantách sa jednotka so senzorom uspí na stanovený čas. Následne znova oznámi svoju funkčnosť ústredni a zistí stav systému. Rozhodovanie sa opakuje.
+Po oboch variantách sa jednotka so senzorom uspí na stanovený čas. Pri uspávaní sa využije mód hlbokého spánku, ktorý patrí medzi najúspornejšie pričom dokáže stále prebudiť systém z externého zdroja. Následne znova oznámi svoju funkčnosť ústredni a zistí stav systému. Rozhodovanie sa opakuje.
 
 \section{Správa systému}
 
@@ -516,9 +539,14 @@ Celý systém je potrebné spravovať. Keďže samotný systém neobsahuje žiad
 
 Odosielanie takmer všetkých požiadaviek na ústredňu bude prebiehať pomocou HTTP na lokálnej sieti. Je teda nutné aby obe zariadenia boli pripojené na rovnakú Wi-Fi sieť. Výnimkou budú počiatočné nastavenia, ktoré slúžia práve na nastavenie komunikácie pomocou Wi-Fi. Tieto počiatočné nastavenia budú prebiehať pomocou technológie BLE. Pri všetkých nastaveniach musí byť systém v stave konfigurácie, jedinou výnimkou je aktivácia systému, ktorá okrem stavu konfigurácie podporuje aj stav odstrážené.
 
+Pre čo najväčšiu kompatibilitu medzi platformami je najvhodnejšie využiť štandardné webové technológie ako sú HTML, CSS a Javascript. Existuje niekoľko spôsobov ako tento spôsob využiť, jedným z nich je napríklad framework Apache Cordova. Ten je možný dopĺňať o ďalšie moduly, a tak rozširovať jeho funkcionalitu. Pomocou tohto frameworku sa vytvorí aplikácia pre vybranú platformu, v ktorej bude spustené klasické webové okno s naprogramovaným obsahom. Ide o jednoduchý spôsob ako vyvíjať multiplatformové aplikácie. Práve preto bol tento framework zvolený pri vývoji mobilnej aplikácie.
+    
+
 \chapter{Implementácia}
 
 \section{ESP32}
+
+Pri implementácii samotného programu bol použitý framework ESP IDF.
 
 \subsection{Ústredňa}
 

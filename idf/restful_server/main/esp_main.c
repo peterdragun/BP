@@ -1,7 +1,9 @@
 #include "esp_main.h"
 
-char wifi_ssid[32] = "Heslo za pivo";
-char wifi_pass[64] = "neviem12";
+char wifi_ssid[32];
+char wifi_pass[64];
+
+int rssi = -50;
 
 scan_enum_t scan_type = Just_scan;
 scan_enum_t *scan_type_ptr = &scan_type;
@@ -102,7 +104,7 @@ static esp_ble_adv_params_t adv_params = {
     .adv_type           = ADV_TYPE_IND,
     .own_addr_type      = BLE_ADDR_TYPE_PUBLIC,
     .channel_map        = ADV_CHNL_ALL,
-    .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY, // ADV_FILTER_ALLOW_SCAN_WLST_CON_WLST
+    .adv_filter_policy  = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY, // ADV_FILTER_ALLOW_SCAN_WLST_CON_WLST
 };
 
 /* One gatt-based profile one app_id and one gatts_if, this array will store the gatts_if returned by ESP_GATTS_REG_EVT */
@@ -521,7 +523,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             }
 
             switch (*scan_type_ptr){
-                case Just_scan:{
+                case Just_scan: {
                     char address[20];
                     uint8_t *a = scan_result->scan_rst.bda;
                     sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", a[0], a[1], a[2], a[3], a[4], a[5]);
@@ -529,10 +531,11 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     cJSON_AddStringToObject(json_obj, "name", (const char*)adv_name);
                     cJSON_AddItemToArray(json_resp, json_obj);
                     ESP_LOGI(BLE_SECURITY_SYSTEM, "Searched Device Name Len %d", adv_name_len);
+                    ESP_LOGI(BLE_SECURITY_SYSTEM,"RSSI: %d", scan_result->scan_rst.rssi);
                     esp_log_buffer_char(BLE_SECURITY_SYSTEM, adv_name, adv_name_len);
                     ESP_LOGI(BLE_SECURITY_SYSTEM, "\n");
-                    }
                     break;
+                }
                 case Add_new:
                     if (compare_uuids(new_address, scan_result->scan_rst.bda) == ESP_OK){
                         esp_ble_gap_stop_scanning();
@@ -543,24 +546,27 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                         }
                     }
                     break;
-                case Search_known:{
+                case Search_known: {
                     if (*security_state == Armed){
                         int bond_cnt = esp_ble_get_bond_device_num();
                         esp_ble_bond_dev_t list[bond_cnt];
-                        ESP_LOGI(REST_TAG,"list length: %d", bond_cnt);
-                        esp_ble_get_bond_device_list(&bond_cnt, list);
+                        ESP_LOGI(BLE_SECURITY_SYSTEM,"list length: %d", bond_cnt);
+                        ESP_LOGI(BLE_SECURITY_SYSTEM,"RSSI: %d", scan_result->scan_rst.rssi);
 
-                        for(int i = 0; i < bond_cnt; i++){
-                            if (compare_uuids(list[i].bd_addr, scan_result->scan_rst.bda) == ESP_OK){
-                                esp_ble_gap_stop_scanning();
-                                if (connect == false) {
-                                    connect = true;
-                                    ESP_LOGI(BLE_SECURITY_SYSTEM, "connect to the remote device.");
-                                    esp_err_t ret = esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, scan_result->scan_rst.bda, scan_result->scan_rst.ble_addr_type, true);
-                                    if (ret == ESP_OK){
-                                        xTaskCreate(stop_alarm_task, "stop_alarm", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
-                                        vTaskDelete(xHandle_search);
-                                        *security_state = Disarmed;
+                        if(scan_result->scan_rst.rssi > rssi){
+                            esp_ble_get_bond_device_list(&bond_cnt, list);
+                            for(int i = 0; i < bond_cnt; i++){
+                                if (compare_uuids(list[i].bd_addr, scan_result->scan_rst.bda) == ESP_OK){
+                                    esp_ble_gap_stop_scanning();
+                                    if (connect == false) {
+                                        connect = true;
+                                        ESP_LOGI(BLE_SECURITY_SYSTEM, "connect to the remote device.");
+                                        esp_err_t ret = esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, scan_result->scan_rst.bda, scan_result->scan_rst.ble_addr_type, true);
+                                        if (ret == ESP_OK){
+                                            xTaskCreate(stop_alarm_task, "stop_alarm", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+                                            vTaskDelete(xHandle_search);
+                                            *security_state = Disarmed;
+                                        }
                                     }
                                 }
                             }
@@ -568,8 +574,8 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     }else{
                         esp_ble_gap_stop_scanning();
                     }
-                    }
                     break;
+                }
                 default:
                     break;
             }
@@ -595,8 +601,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
     }
 }
 
-static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param)
-{
+static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param){
     ESP_LOGI(BLE_SECURITY_SYSTEM, "EVT %d, gattc if %d", event, gattc_if);
 
     /* If event is register event, store the gattc_if for each profile */
@@ -611,8 +616,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp
         }
     }
 
-    /* If the gattc_if equal to profile A, call profile A cb handler,
-     * so here call each profile's callback */
+    // set callback for client profile
     do {
         int idx;
         for (idx = 0; idx < PROFILE_NUM; idx++) {
@@ -625,6 +629,55 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp
         }
     } while (0);
 }
+
+static void wirte_wifi_credentials(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param) {
+    esp_err_t ret;
+    nvs_handle_t nvs_handle;
+    if (param->write.handle == 50){ //SSID
+        for (int i = 0; i < param->write.len; i++){
+            wifi_ssid[i] = param->write.value[i];
+        }
+        wifi_ssid[param->write.len] = '\0';
+        ESP_LOGI(BLE_SECURITY_SYSTEM, "New SSID is: %s", wifi_ssid);
+
+        ret = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+        if (ret == ESP_OK) {
+            nvs_set_str(nvs_handle, "ssid", wifi_ssid);
+            nvs_commit(nvs_handle);
+            nvs_close(nvs_handle);
+        }
+    }else if (param->write.handle == 52){ // password
+        for (int i = 0; i < param->write.len; i++){
+            wifi_pass[i] = param->write.value[i];
+        }
+        wifi_pass[param->write.len] = '\0';
+        ESP_LOGI(BLE_SECURITY_SYSTEM, "New password is: %s", wifi_pass);
+
+        ret = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+        if (ret == ESP_OK) {
+            nvs_set_str(nvs_handle, "pass", wifi_pass);
+            nvs_commit(nvs_handle);
+            nvs_close(nvs_handle);
+        }
+
+        esp_restart();
+        // init rest server
+        // ESP_ERROR_CHECK(wifi_connect());
+        // ESP_ERROR_CHECK(start_rest_server());
+    }
+    esp_gatt_rsp_t *gatt_rsp = (esp_gatt_rsp_t *)malloc(sizeof(esp_gatt_rsp_t));
+    gatt_rsp->attr_value.len = param->write.len;
+    gatt_rsp->attr_value.handle = param->write.handle;
+    gatt_rsp->attr_value.offset = param->write.offset;
+    gatt_rsp->attr_value.auth_req = ESP_GATT_AUTH_REQ_NONE;
+    memcpy(gatt_rsp->attr_value.value, param->write.value, param->write.len);
+    esp_err_t response_err = esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, ESP_GATT_OK, gatt_rsp);
+    if (response_err != ESP_OK) {
+        ESP_LOGE(BLE_SECURITY_SYSTEM, "Send response error\n");
+    }
+    free(gatt_rsp);
+}
+
 
 static void gatts_profile_setup_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param) {
     switch (event) {
@@ -639,9 +692,6 @@ static void gatts_profile_setup_event_handler(esp_gatts_cb_event_t event, esp_ga
         break;
     case ESP_GATTS_READ_EVT: {
         ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
-        if(*security_state != Setup){
-            // TODO: send error
-        }
         esp_gatt_rsp_t rsp;
         memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
         rsp.attr_value.handle = param->read.handle;
@@ -660,8 +710,7 @@ static void gatts_profile_setup_event_handler(esp_gatts_cb_event_t event, esp_ga
         ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
         esp_log_buffer_hex(BLE_SECURITY_SYSTEM, param->write.value, param->write.len);
         ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, param handle %d", param->write.handle);
-        // handle 50 for ssid and 52 for password
-        example_write_event_env(gatts_if, &b_prepare_write_env, param);
+        wirte_wifi_credentials(gatts_if, &b_prepare_write_env, param);
         break;
     }
     case ESP_GATTS_EXEC_WRITE_EVT:
@@ -726,8 +775,12 @@ static void gatts_profile_setup_event_handler(esp_gatts_cb_event_t event, esp_ga
                  param->connect.conn_id,
                  param->connect.remote_bda[0], param->connect.remote_bda[1], param->connect.remote_bda[2],
                  param->connect.remote_bda[3], param->connect.remote_bda[4], param->connect.remote_bda[5]);
-                 gatts_profile_tab[GATTS_PROFILE_SETUP].conn_id = param->connect.conn_id;
-        esp_ble_set_encryption(param->connect.remote_bda, ESP_BLE_SEC_ENCRYPT_MITM);
+        gatts_profile_tab[GATTS_PROFILE_SETUP].conn_id = param->connect.conn_id;
+        if(*security_state != Setup){
+            esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_AUTH_FAIL, NULL);
+        }else{
+            esp_ble_set_encryption(param->connect.remote_bda, ESP_BLE_SEC_ENCRYPT_MITM);
+        }
         esp_ble_gap_start_advertising(&adv_params);
         break;
     case ESP_GATTS_CONF_EVT:
@@ -770,44 +823,14 @@ static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_g
         if (!param->write.is_prep) {
             ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
             if (*security_state == Armed && *(param->write.value) > 0){
-                *security_state = Alarm;
-                time(&last_alarm);
-                vTaskDelete(xHandle_search);
-                xTaskCreate(alarm_task, "alarm_task", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_alarm);
-                ESP_LOGI(BLE_SECURITY_SYSTEM, "Alarm triggered by sensor");
+                if (record_alarm(param->write.bda)==ESP_OK){
+                    *security_state = Alarm;
+                    vTaskDelete(xHandle_search);
+                    xTaskCreate(alarm_task, "alarm_task", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_alarm);
+                    ESP_LOGI(BLE_SECURITY_SYSTEM, "Alarm triggered by sensor");
+                }
             }
             esp_log_buffer_hex(BLE_SECURITY_SYSTEM, param->write.value, param->write.len);
-            if (gatts_profile_tab[GATTS_PROFILE_SENSOR].descr_handle == param->write.handle && param->write.len == 2) {
-                uint16_t descr_value= param->write.value[1]<<8 | param->write.value[0];
-                if (descr_value == NOTIFY_ENABLE) {
-                    if (b_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY) {
-                        ESP_LOGI(BLE_SECURITY_SYSTEM, "notify enable\n");
-                        uint8_t notify_data[15];
-                        for (int i = 0; i < sizeof(notify_data); ++ i) {
-                            notify_data[i] = i%0xff;
-                        }
-                        //the size of notify_data[] need less than MTU size
-                        esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gatts_profile_tab[GATTS_PROFILE_SENSOR].char_handle,
-                                                sizeof(notify_data), notify_data, false);
-                    }
-                } else if (descr_value == INDICATE_ENABLE) {
-                    if (b_property & ESP_GATT_CHAR_PROP_BIT_INDICATE) {
-                        ESP_LOGI(BLE_SECURITY_SYSTEM, "indicate enable\n");
-                        uint8_t indicate_data[15];
-                        for (int i = 0; i < sizeof(indicate_data); ++ i) {
-                            indicate_data[i] = i%0xff;
-                        }
-                        //the size of indicate_data[] need less than MTU size
-                        esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gatts_profile_tab[GATTS_PROFILE_SENSOR].char_handle,
-                                                    sizeof(indicate_data), indicate_data, true);
-                    }
-                } else if (descr_value == NOTIFY_INDICATE_DISABLE) {
-                    ESP_LOGI(BLE_SECURITY_SYSTEM, "notify/indicate disable \n");
-                } else {
-                    ESP_LOGE(BLE_SECURITY_SYSTEM, "unknown value\n");
-                }
-
-            }
         }
         example_write_event_env(gatts_if, &b_prepare_write_env, param);
         break;
@@ -1067,8 +1090,7 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
         }
     }
 
-    /* If the gatts_if equal to profile A, call profile A cb handler,
-     * so here call each profile's callback */
+    // register callbacks for server profiles
     do {
         int idx;
         for (idx = 0; idx < GATTS_PROFILE_NUM; idx ++) {
@@ -1180,11 +1202,6 @@ void app_main(){
     nvs_get_stats(NULL, &nvs_stats);
     printf("Count: UsedEntries = (%d), FreeEntries = (%d), AllEntries = (%d)\n",
             nvs_stats.used_entries, nvs_stats.free_entries, nvs_stats.total_entries);
-
-    // nvs_open("storage", NVS_READWRITE, &nvs_handle);
-    // nvs_set_str(nvs_handle, "ssid", "Heslo za pivo");
-    // nvs_set_str(nvs_handle, "pass", "neviem12");
-    // nvs_close(nvs_handle);
 
     // init rest server
     if(wifi_credentials_loaded){
