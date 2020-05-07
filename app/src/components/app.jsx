@@ -21,7 +21,7 @@ export default class extends React.Component {
     this.state = {
       // Framework7 Parameters
       f7params: {
-        id: 'io.framework7.myapp', // App bundle ID
+        id: 'home-security', // App bundle ID
         name: 'Home security', // App name
         theme: 'auto', // Automatic theme detection
 
@@ -42,6 +42,10 @@ export default class extends React.Component {
     }
   }
   render() {
+    var url = "/";
+    if (typeof localStorage.ip == 'undefined') {
+      url = "/setup/"
+    }
     return (
       <App params={ this.state.f7params } themeDark>
 
@@ -52,9 +56,12 @@ export default class extends React.Component {
               <Navbar title="Menu"/>
               <BlockTitle>Control Main View</BlockTitle>
               <List>
+                <ListItem link="/" view=".view-main" panelClose title="Home"/>
                 <ListItem link="/scan/" view=".view-main" panelClose title="Scan"/>
                 <ListItem link="/whitelist/" view=".view-main" panelClose title="Whitelist"/>
+                <ListItem link="/sensors/" view=".view-main" panelClose title="Sensors"/>
                 <ListItem link="/change-code/" view=".view-main" panelClose title="Change alarm code"/>
+                <ListItem link="/setup/" view=".view-main" panelClose title="Setup"/>
                </List>
               <BlockTitle>About application</BlockTitle>
               <List>
@@ -65,7 +72,7 @@ export default class extends React.Component {
         </Panel>
 
         {/* Your main view, should have "view-main" class */}
-        <View main className="safe-areas" url="/" />
+        <View main className="safe-areas" url={url} />
 
       </App>
     )

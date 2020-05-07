@@ -21,8 +21,8 @@ export default class extends React.Component {
 
     this.state = {
       scan: props.f7route.context.scan,
-      succPopupOpened: false,
-      errorPopupOpened: props.f7route.context.errorPopup,
+      popupTitle: "Error",
+      popupOpened: props.f7route.context.errorPopup,
       message: props.f7route.context.message,
     };
   }
@@ -43,21 +43,9 @@ export default class extends React.Component {
             </Card>
           ))}
         </List>
-        <Popup opened={this.state.succPopupOpened} onPopupClosed={() => this.setState({succPopupOpened : false})}>
+        <Popup opened={this.state.popupOpened} onPopupClosed={() => this.setState({popupOpened : false})}>
           <Page>
-            <Navbar title="Success">
-              <NavRight>
-                <Link popupClose>Close</Link>
-              </NavRight>
-            </Navbar>
-            <Block>
-              <p>{this.state.message}</p>
-            </Block>
-          </Page>
-        </Popup>
-        <Popup opened={this.state.errorPopupOpened} onPopupClosed={() => this.setState({errorPopupOpened : false})}>
-          <Page>
-            <Navbar title="Error">
+            <Navbar title={this.state.popupTitle}>
               <NavRight>
                 <Link popupClose>Close</Link>
               </NavRight>
@@ -72,36 +60,34 @@ export default class extends React.Component {
   }
   handleClick (address) {
     if (typeof localStorage.ip == 'undefined'){
-      this.setState({ errorPopupOpened : true, message: "Please click on 'Get IP address' button on Main page" })
+      this.setState({ popupTitle: "Error", popupOpened : true, message: "Please click on 'Find main unit' button on Setup page" })
       return;
     }
     axios({
       method: 'post',
-      // url: 'http://esp-home.local/ble/device/add',
       url: 'http://' + localStorage.ip + '/ble/device/add',
       timeout: 6000,
       data: {
         address: address,
       }
-    }).then(response => {this.setState({ succPopupOpened : true, message: response.data })},
+    }).then(response => {this.setState({ popupTitle: "Success", popupOpened : true, message: response.data })},
     error => {
       console.log(error);
       var message = "Timeout"
       if (error.response){
         message = error.response.data
       }
-      this.setState({ errorPopupOpened : true, message: message })
+      this.setState({ popupTitle: "Error", popupOpened : true, message: message })
     });
   }
   reload(done){
     if (typeof localStorage.ip == 'undefined'){
-      this.setState({ errorPopupOpened : true, message: "Please click on 'Get IP address' button on Main page" })
+      this.setState({ popupTitle: "Error", popupOpened : true, message: "Please click on 'Find main unit' button on Setup page" })
       return;
     }
     var {scan} = this.state;
     axios({
       method: 'get',
-      // url: 'http://esp-home.local/ble/scan',
       url: 'http://' + localStorage.ip + '/ble/scan',
       timeout: 8000
     }).then(response => {
@@ -115,7 +101,7 @@ export default class extends React.Component {
       if (error.response){
         message = error.response.data
       }
-      this.setState({ errorPopupOpened : true, message: message })
+      this.setState({ popupTitle: "Success", popupOpened : true, message: message })
       done();
     });
   }
