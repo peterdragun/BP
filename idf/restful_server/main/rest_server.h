@@ -13,6 +13,7 @@
 
 #include "alarm.h"
 #include "esp_main.h"
+#include "sensors.h"
 
 #define SCRATCH_BUFSIZE (10240)
 
@@ -36,6 +37,8 @@ extern char expected_code[19];
 extern uint8_t unknown_sensor[6];
 extern uint8_t number_of_sensors;
 extern sensor_t sensors[MAX_NUMBER_OF_SENSORS];
+extern time_t last_alarm;
+extern int rssi;
 
 typedef struct rest_server_context {
     char scratch[SCRATCH_BUFSIZE];

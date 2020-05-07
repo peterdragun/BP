@@ -1,17 +1,12 @@
 #include "esp_main.h"
 
-char wifi_ssid[32] = "Heslo za pivo";
-char wifi_pass[64] = "neviem12";
+char wifi_ssid[32];
+char wifi_pass[64];
+
+int rssi = -50;
 
 scan_enum_t scan_type = Just_scan;
 scan_enum_t *scan_type_ptr = &scan_type;
-
-uint8_t unknown_sensor[6];
-sensor_t sensors[MAX_NUMBER_OF_SENSORS];
-uint8_t number_of_sensors = 0;
-TaskHandle_t xHandle_increment_beeps;
-
-const char sensors_nvs_key[5][3] = {"s1\0", "s2\0", "s3\0", "s4\0", "s5\0" };
 
 static esp_gattc_char_elem_t *char_elem_result   = NULL;
 static esp_gattc_descr_elem_t *descr_elem_result = NULL;
@@ -20,7 +15,7 @@ static esp_gattc_descr_elem_t *descr_elem_result = NULL;
 static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param);
 static void gatts_profile_status_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
-static void gatts_profile_IP_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
+static void gatts_profile_setup_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 static void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param);
 static void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param);
 
@@ -68,6 +63,8 @@ static uint8_t service_uuid128[NUMBER_OF_UUIDS * ESP_UUID_LEN_128] = {
     0xb3, 0x50, 0xf9, 0xdc, 0xf5, 0x78, 0x62, 0x85, 0x4e, 0x4b, 0xce, 0xff, 0xff, 0xec, 0xa2, 0x1b,
 };
 
+static uint8_t setup_char_uuid128[ESP_UUID_LEN_128] = {0x91, 0x44, 0x67, 0x3e, 0x1f, 0x4e, 0xec, 0x94, 0xaf, 0x4b, 0x9b, 0xa6, 0x01, 0x6e, 0x68, 0x83};
+
 static esp_ble_adv_data_t adv_data = {
     .set_scan_rsp = false,
     .include_name = true,
@@ -75,8 +72,8 @@ static esp_ble_adv_data_t adv_data = {
     .min_interval = 0x20,
     .max_interval = 0x40,
     .appearance = 0x00,
-    .manufacturer_len = 0, 
-    .p_manufacturer_data =  NULL, 
+    .manufacturer_len = 0,
+    .p_manufacturer_data =  NULL,
     .service_data_len = 0,
     .p_service_data = NULL,
     .service_uuid_len = NUMBER_OF_UUIDS * ESP_UUID_LEN_128,
@@ -92,8 +89,8 @@ static esp_ble_adv_data_t scan_rsp_data = {
     .min_interval = 0x0006,
     .max_interval = 0x0010,
     .appearance = 0x00,
-    .manufacturer_len = 0, 
-    .p_manufacturer_data =  NULL, 
+    .manufacturer_len = 0,
+    .p_manufacturer_data =  NULL,
     .service_data_len = 0,
     .p_service_data = NULL,
     .service_uuid_len = 0,
@@ -107,137 +104,29 @@ static esp_ble_adv_params_t adv_params = {
     .adv_type           = ADV_TYPE_IND,
     .own_addr_type      = BLE_ADDR_TYPE_PUBLIC,
     .channel_map        = ADV_CHNL_ALL,
-    .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY, // ADV_FILTER_ALLOW_SCAN_WLST_CON_WLST
+    .adv_filter_policy  = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY, // ADV_FILTER_ALLOW_SCAN_WLST_CON_WLST
 };
 
 /* One gatt-based profile one app_id and one gatts_if, this array will store the gatts_if returned by ESP_GATTS_REG_EVT */
 static struct gatts_profile_inst gatts_profile_tab[GATTS_PROFILE_NUM] = {
-    [GATTS_PROFILE_A_APP_ID] = {
+    [GATTS_PROFILE_STATUS] = {
         .gatts_cb = gatts_profile_status_event_handler,
         .gatts_if = ESP_GATT_IF_NONE,       /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
     },
-    [GATTS_PROFILE_B_APP_ID] = {
+    [GATTS_PROFILE_SENSOR] = {
         .gatts_cb = gatts_profile_sensor_event_handler,
         .gatts_if = ESP_GATT_IF_NONE,       /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
     },
-    [GATTS_PROFILE_C_APP_ID] = {
-        .gatts_cb = gatts_profile_IP_event_handler,
+    [GATTS_PROFILE_SETUP] = {
+        .gatts_cb = gatts_profile_setup_event_handler,
         .gatts_if = ESP_GATT_IF_NONE,       /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
     },
 };
 
-esp_err_t compare_uuids(uint8_t *uuid1, uint8_t *uuid2){
-    if(sizeof(uuid1) != sizeof(uuid2)){
-        return ESP_FAIL;
-    }
-    for (int i = 0; i < sizeof(uuid1); i++){
-        if(uuid1[i] != uuid2[i]){
-            return ESP_FAIL;
-        }
-    }
-    return ESP_OK;
-}
-
-static esp_err_t record_sensor(uint8_t *address){
-    for (int i = 0; i < number_of_sensors; i++){
-        if(compare_uuids(sensors[i].address, address) == ESP_OK){
-            sensors[i].missed_beeps = 0;
-            return ESP_OK;
-        }
-    }
-    for (int i = 0; i < 6; i++){
-        unknown_sensor[i] = address[i];
-    }
-    return ESP_FAIL;
-}
-
-esp_err_t add_new_sensor(uint8_t *address){
-    if (number_of_sensors == MAX_NUMBER_OF_SENSORS){
-        return ESP_FAIL;
-    }
-    for (int i = 0; i < number_of_sensors; i++){
-        if (compare_uuids(address, sensors[i].address)==ESP_OK){
-            return ESP_FAIL;
-        }
-    }
-    nvs_handle_t nvs_handle;
-    uint64_t number = 0;
-    esp_err_t ret = nvs_open("storage", NVS_READWRITE, &nvs_handle);
-    if (ret == ESP_OK) {
-        ESP_LOGI(REST_TAG, "Writing sensor address to NVS memory... ");
-        for (uint8_t i = 0; i < 6; i++){
-            printf("%x\n", address[i]);
-            number |= address[i];
-            number = number << 8;
-            sensors[number_of_sensors].address[i] = address[i];
-        }
-        ret = nvs_set_u64(nvs_handle, sensors_nvs_key[number_of_sensors], number);
-        if(ret == ESP_OK){
-            nvs_set_u8(nvs_handle, "sensors_cnt", number_of_sensors+1);
-            nvs_commit(nvs_handle);
-        }
-        nvs_close(nvs_handle);
-        ESP_LOGI(REST_TAG, "Done");
-    }
-    sensors[number_of_sensors].missed_beeps = 0;
-    number_of_sensors++;
-    return ESP_OK;
-}
-
-esp_err_t remove_sensor(uint8_t *address){
-    int idx;
-    for (int i = 0; i < number_of_sensors; i++){
-        if (compare_uuids(address, sensors[i].address)==ESP_OK){
-            idx = i;
-            break;
-        }
-        return ESP_FAIL;
-    }
-    nvs_handle_t nvs_handle;
-    uint64_t number = 0;
-    esp_err_t ret = nvs_open("storage", NVS_READWRITE, &nvs_handle);
-    if (ret == ESP_OK) {
-        if (idx != number_of_sensors-1){
-            for (uint8_t i = 0; i < 6; i++){
-                printf("%x\n", address[i]);
-                number |= address[i];
-                number = number << 8;
-                sensors[number_of_sensors].address[i] = address[i];
-            }
-            ret = nvs_set_u64(nvs_handle, sensors_nvs_key[idx], number);
-        }
-        nvs_set_u8(nvs_handle, "sensors_cnt", --number_of_sensors);
-        nvs_erase_key(nvs_handle, sensors_nvs_key[number_of_sensors]);
-        nvs_commit(nvs_handle);
-        nvs_close(nvs_handle);
-    }
-    esp_ble_remove_bond_device(address);
-    return ESP_OK;
-}
-
-void increment_sensor_beeps_task(){
-    uint8_t wait_time;
-    while (1) {
-        ESP_LOGI("incrementing task", "start");
-        for(uint8_t i = 0; i < number_of_sensors; i++){
-            sensors[i].missed_beeps++;
-            if (sensors[i].missed_beeps++ >= 4){
-                //BAD -alarm or smth
-                ESP_LOGE("incrementing task", "senozor sa nehlasi!!!!!");
-            }
-        }
-        wait_time = 40;
-        if(*security_state > Activating){
-            wait_time = 20;
-        }
-        vTaskDelay(wait_time*1000 / portTICK_PERIOD_MS);
-    }
-}
-
 static const char *esp_key_type_to_str(esp_ble_key_type_t key_type)
 {
-   const char *key_str = NULL;
-   switch(key_type) {
+    const char *key_str = NULL;
+    switch(key_type) {
     case ESP_LE_KEY_NONE:
         key_str = "ESP_LE_KEY_NONE";
         break;
@@ -268,15 +157,14 @@ static const char *esp_key_type_to_str(esp_ble_key_type_t key_type)
     default:
         key_str = "INVALID BLE KEY TYPE";
         break;
-
     }
-     return key_str;
+    return key_str;
 }
 
 static char *esp_auth_req_to_str(esp_ble_auth_req_t auth_req)
 {
-   char *auth_str = NULL;
-   switch(auth_req) {
+    char *auth_str = NULL;
+    switch(auth_req) {
     case ESP_LE_AUTH_NO_BOND:
         auth_str = "ESP_LE_AUTH_NO_BOND";
         break;
@@ -304,9 +192,8 @@ static char *esp_auth_req_to_str(esp_ble_auth_req_t auth_req)
     default:
         auth_str = "INVALID BLE AUTH REQ";
         break;
-   }
-
-   return auth_str;
+    }
+    return auth_str;
 }
 
 
@@ -321,10 +208,10 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
         break;
     case ESP_GATTC_CONNECT_EVT: {
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ESP_GATTC_CONNECT_EVT conn_id %d, if %d\n", p_data->connect.conn_id, gattc_if);
-        gl_profile_tab[GATTC_PROFILE_D_APP_ID].conn_id = p_data->connect.conn_id;
-        memcpy(gl_profile_tab[GATTC_PROFILE_D_APP_ID].remote_bda, p_data->connect.remote_bda, sizeof(esp_bd_addr_t));
+        gl_profile_tab[GATTC_PROFILE].conn_id = p_data->connect.conn_id;
+        memcpy(gl_profile_tab[GATTC_PROFILE].remote_bda, p_data->connect.remote_bda, sizeof(esp_bd_addr_t));
         ESP_LOGI(BLE_SECURITY_SYSTEM, "REMOTE BDA:");
-        esp_log_buffer_hex(BLE_SECURITY_SYSTEM, gl_profile_tab[GATTC_PROFILE_D_APP_ID].remote_bda, sizeof(esp_bd_addr_t));
+        esp_log_buffer_hex(BLE_SECURITY_SYSTEM, gl_profile_tab[GATTC_PROFILE].remote_bda, sizeof(esp_bd_addr_t));
         esp_err_t mtu_ret = esp_ble_gattc_send_mtu_req (gattc_if, p_data->connect.conn_id);
         if (mtu_ret) {
             ESP_LOGE(BLE_SECURITY_SYSTEM, "config MTU error, error code = %x\n", mtu_ret);
@@ -414,13 +301,11 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
                     }
                     if (count > 0){
 
-                        for (int i = 0; i < count; ++i)
-                        {
-                            if (char_elem_result[i].uuid.len == ESP_UUID_LEN_16 && char_elem_result[i].uuid.uuid.uuid16 == REMOTE_NOTIFY_UUID && (char_elem_result[i].properties & ESP_GATT_CHAR_PROP_BIT_NOTIFY))
-                            {
+                        for (int i = 0; i < count; ++i){
+                            if (char_elem_result[i].uuid.len == ESP_UUID_LEN_16 && char_elem_result[i].uuid.uuid.uuid16 == REMOTE_NOTIFY_UUID &&
+                                (char_elem_result[i].properties & ESP_GATT_CHAR_PROP_BIT_NOTIFY)){
                                 gl_profile_tab[PROFILE_A_APP_ID].notify_char_handle = char_elem_result[i].char_handle;
-                                esp_ble_gattc_register_for_notify (gattc_if,
-                                                                   gl_profile_tab[PROFILE_A_APP_ID].remote_bda,
+                                esp_ble_gattc_register_for_notify (gattc_if, gl_profile_tab[PROFILE_A_APP_ID].remote_bda,
                                                                    char_elem_result[i].char_handle);
                                 break;
                             }
@@ -441,13 +326,10 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
             uint16_t count = 0;
             uint16_t offset = 0;
             uint16_t notify_en = 1;
-            esp_gatt_status_t ret_status = esp_ble_gattc_get_attr_count(gattc_if,
-                                                                        gl_profile_tab[PROFILE_A_APP_ID].conn_id,
-                                                                        ESP_GATT_DB_DESCRIPTOR,
+            esp_gatt_status_t ret_status = esp_ble_gattc_get_attr_count(gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id, ESP_GATT_DB_DESCRIPTOR,
                                                                         gl_profile_tab[PROFILE_A_APP_ID].service_start_handle,
                                                                         gl_profile_tab[PROFILE_A_APP_ID].service_end_handle,
-                                                                        p_data->reg_for_notify.handle,
-                                                                        &count);
+                                                                        p_data->reg_for_notify.handle, &count);
             if (ret_status != ESP_GATT_OK){
                 ESP_LOGE(BLE_SECURITY_SYSTEM, "esp_ble_gattc_get_attr_count error, %d", __LINE__);
             }
@@ -456,12 +338,8 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
                 if (!descr_elem_result){
                     ESP_LOGE(BLE_SECURITY_SYSTEM, "malloc error, gattc no mem");
                 }else{
-                    ret_status = esp_ble_gattc_get_all_descr(gattc_if,
-                                                             gl_profile_tab[PROFILE_A_APP_ID].conn_id,
-                                                             p_data->reg_for_notify.handle,
-                                                             descr_elem_result,
-                                                             &count,
-                                                             offset);
+                    ret_status = esp_ble_gattc_get_all_descr(gattc_if,gl_profile_tab[PROFILE_A_APP_ID].conn_id, p_data->reg_for_notify.handle,
+                                                             descr_elem_result, &count, offset);
                 if (ret_status != ESP_GATT_OK){
                     ESP_LOGE(BLE_SECURITY_SYSTEM, "esp_ble_gattc_get_all_descr error, %d", __LINE__);
                 }
@@ -470,13 +348,8 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
                     {
                         if (descr_elem_result[i].uuid.len == ESP_UUID_LEN_16 && descr_elem_result[i].uuid.uuid.uuid16 == ESP_GATT_UUID_CHAR_CLIENT_CONFIG)
                         {
-                            esp_ble_gattc_write_char_descr (gattc_if,
-                                                            gl_profile_tab[PROFILE_A_APP_ID].conn_id,
-                                                            descr_elem_result[i].handle,
-                                                            sizeof(notify_en),
-                                                            (uint8_t *)&notify_en,
-                                                            ESP_GATT_WRITE_TYPE_RSP,
-                                                            ESP_GATT_AUTH_REQ_NONE);
+                            esp_ble_gattc_write_char_descr (gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id, descr_elem_result[i].handle,
+                                                            sizeof(notify_en), (uint8_t *)&notify_en, ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
 
                             break;
                         }
@@ -631,7 +504,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         if (!param->ble_security.auth_cmpl.success) {
             ESP_LOGI(BLE_SECURITY_SYSTEM, "fail reason = 0x%x",param->ble_security.auth_cmpl.fail_reason);
         } else {
-            ESP_LOGI(BLE_SECURITY_SYSTEM, "auth mode = %s",esp_auth_req_to_str(param->ble_security.auth_cmpl.auth_mode));    
+            ESP_LOGI(BLE_SECURITY_SYSTEM, "auth mode = %s",esp_auth_req_to_str(param->ble_security.auth_cmpl.auth_mode));
         }
         break;
     }
@@ -641,15 +514,16 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         switch (scan_result->scan_rst.search_evt) {
         case ESP_GAP_SEARCH_INQ_RES_EVT:
             esp_log_buffer_hex(BLE_SECURITY_SYSTEM, scan_result->scan_rst.bda, 6);
-            ESP_LOGI(BLE_SECURITY_SYSTEM, "Searched Adv Data Len %d, Scan Response Len %d", scan_result->scan_rst.adv_data_len, scan_result->scan_rst.scan_rsp_len);
+            ESP_LOGI(BLE_SECURITY_SYSTEM, "Searched Adv Data Len %d, Scan Response Len %d",
+                     scan_result->scan_rst.adv_data_len, scan_result->scan_rst.scan_rsp_len);
             adv_name = esp_ble_resolve_adv_data(scan_result->scan_rst.ble_adv,
                                                 ESP_BLE_AD_TYPE_NAME_CMPL, &adv_name_len);
             if (adv_name_len > 1){
                 adv_name[adv_name_len] = '\0';
             }
-            
+
             switch (*scan_type_ptr){
-                case Just_scan:{
+                case Just_scan: {
                     char address[20];
                     uint8_t *a = scan_result->scan_rst.bda;
                     sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", a[0], a[1], a[2], a[3], a[4], a[5]);
@@ -657,10 +531,11 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     cJSON_AddStringToObject(json_obj, "name", (const char*)adv_name);
                     cJSON_AddItemToArray(json_resp, json_obj);
                     ESP_LOGI(BLE_SECURITY_SYSTEM, "Searched Device Name Len %d", adv_name_len);
+                    ESP_LOGI(BLE_SECURITY_SYSTEM,"RSSI: %d", scan_result->scan_rst.rssi);
                     esp_log_buffer_char(BLE_SECURITY_SYSTEM, adv_name, adv_name_len);
                     ESP_LOGI(BLE_SECURITY_SYSTEM, "\n");
-                    }
                     break;
+                }
                 case Add_new:
                     if (compare_uuids(new_address, scan_result->scan_rst.bda) == ESP_OK){
                         esp_ble_gap_stop_scanning();
@@ -671,24 +546,27 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                         }
                     }
                     break;
-                case Search_known:{
+                case Search_known: {
                     if (*security_state == Armed){
                         int bond_cnt = esp_ble_get_bond_device_num();
                         esp_ble_bond_dev_t list[bond_cnt];
-                        ESP_LOGI(REST_TAG,"list length: %d", bond_cnt);
-                        esp_ble_get_bond_device_list(&bond_cnt, list);
+                        ESP_LOGI(BLE_SECURITY_SYSTEM,"list length: %d", bond_cnt);
+                        ESP_LOGI(BLE_SECURITY_SYSTEM,"RSSI: %d", scan_result->scan_rst.rssi);
 
-                        for(int i = 0; i < bond_cnt; i++){
-                            if (compare_uuids(list[i].bd_addr, scan_result->scan_rst.bda) == ESP_OK){
-                                esp_ble_gap_stop_scanning();
-                                if (connect == false) {
-                                    connect = true;
-                                    ESP_LOGI(BLE_SECURITY_SYSTEM, "connect to the remote device.");
-                                    esp_err_t ret = esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, scan_result->scan_rst.bda, scan_result->scan_rst.ble_addr_type, true);
-                                    if (ret == ESP_OK){
-                                        xTaskCreate(stop_alarm_task, "stop_alarm", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
-                                        vTaskDelete(xHandle_search);
-                                        *security_state = Disarmed;
+                        if(scan_result->scan_rst.rssi > rssi){
+                            esp_ble_get_bond_device_list(&bond_cnt, list);
+                            for(int i = 0; i < bond_cnt; i++){
+                                if (compare_uuids(list[i].bd_addr, scan_result->scan_rst.bda) == ESP_OK){
+                                    esp_ble_gap_stop_scanning();
+                                    if (connect == false) {
+                                        connect = true;
+                                        ESP_LOGI(BLE_SECURITY_SYSTEM, "connect to the remote device.");
+                                        esp_err_t ret = esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, scan_result->scan_rst.bda, scan_result->scan_rst.ble_addr_type, true);
+                                        if (ret == ESP_OK){
+                                            xTaskCreate(stop_alarm_task, "stop_alarm", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+                                            vTaskDelete(xHandle_search);
+                                            *security_state = Disarmed;
+                                        }
                                     }
                                 }
                             }
@@ -696,8 +574,8 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     }else{
                         esp_ble_gap_stop_scanning();
                     }
-                    }
                     break;
+                }
                 default:
                     break;
             }
@@ -723,8 +601,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
     }
 }
 
-static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param)
-{
+static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param){
     ESP_LOGI(BLE_SECURITY_SYSTEM, "EVT %d, gattc if %d", event, gattc_if);
 
     /* If event is register event, store the gattc_if for each profile */
@@ -739,8 +616,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp
         }
     }
 
-    /* If the gattc_if equal to profile A, call profile A cb handler,
-     * so here call each profile's callback */
+    // set callback for client profile
     do {
         int idx;
         for (idx = 0; idx < PROFILE_NUM; idx++) {
@@ -754,16 +630,65 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp
     } while (0);
 }
 
-static void gatts_profile_IP_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param) {
+static void wirte_wifi_credentials(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param) {
+    esp_err_t ret;
+    nvs_handle_t nvs_handle;
+    if (param->write.handle == 50){ //SSID
+        for (int i = 0; i < param->write.len; i++){
+            wifi_ssid[i] = param->write.value[i];
+        }
+        wifi_ssid[param->write.len] = '\0';
+        ESP_LOGI(BLE_SECURITY_SYSTEM, "New SSID is: %s", wifi_ssid);
+
+        ret = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+        if (ret == ESP_OK) {
+            nvs_set_str(nvs_handle, "ssid", wifi_ssid);
+            nvs_commit(nvs_handle);
+            nvs_close(nvs_handle);
+        }
+    }else if (param->write.handle == 52){ // password
+        for (int i = 0; i < param->write.len; i++){
+            wifi_pass[i] = param->write.value[i];
+        }
+        wifi_pass[param->write.len] = '\0';
+        ESP_LOGI(BLE_SECURITY_SYSTEM, "New password is: %s", wifi_pass);
+
+        ret = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+        if (ret == ESP_OK) {
+            nvs_set_str(nvs_handle, "pass", wifi_pass);
+            nvs_commit(nvs_handle);
+            nvs_close(nvs_handle);
+        }
+
+        esp_restart();
+        // init rest server
+        // ESP_ERROR_CHECK(wifi_connect());
+        // ESP_ERROR_CHECK(start_rest_server());
+    }
+    esp_gatt_rsp_t *gatt_rsp = (esp_gatt_rsp_t *)malloc(sizeof(esp_gatt_rsp_t));
+    gatt_rsp->attr_value.len = param->write.len;
+    gatt_rsp->attr_value.handle = param->write.handle;
+    gatt_rsp->attr_value.offset = param->write.offset;
+    gatt_rsp->attr_value.auth_req = ESP_GATT_AUTH_REQ_NONE;
+    memcpy(gatt_rsp->attr_value.value, param->write.value, param->write.len);
+    esp_err_t response_err = esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, ESP_GATT_OK, gatt_rsp);
+    if (response_err != ESP_OK) {
+        ESP_LOGE(BLE_SECURITY_SYSTEM, "Send response error\n");
+    }
+    free(gatt_rsp);
+}
+
+
+static void gatts_profile_setup_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param) {
     switch (event) {
     case ESP_GATTS_REG_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM, "REGISTER_APP_EVT, status %d, app_id %d\n", param->reg.status, param->reg.app_id);
-        gatts_profile_tab[GATTS_PROFILE_C_APP_ID].service_id.is_primary = true;
-        gatts_profile_tab[GATTS_PROFILE_C_APP_ID].service_id.id.inst_id = 0x00;
-        gatts_profile_tab[GATTS_PROFILE_C_APP_ID].service_id.id.uuid.len = ESP_UUID_LEN_128;
-        memcpy(gatts_profile_tab[GATTS_PROFILE_C_APP_ID].service_id.id.uuid.uuid.uuid128, &(service_uuid128[32]), ESP_UUID_LEN_128);
+        gatts_profile_tab[GATTS_PROFILE_SETUP].service_id.is_primary = true;
+        gatts_profile_tab[GATTS_PROFILE_SETUP].service_id.id.inst_id = 0x00;
+        gatts_profile_tab[GATTS_PROFILE_SETUP].service_id.id.uuid.len = ESP_UUID_LEN_128;
+        memcpy(gatts_profile_tab[GATTS_PROFILE_SETUP].service_id.id.uuid.uuid.uuid128, &(service_uuid128[32]), ESP_UUID_LEN_128);
 
-        esp_ble_gatts_create_service(gatts_if, &gatts_profile_tab[GATTS_PROFILE_C_APP_ID].service_id, GATTS_NUM_HANDLE_TEST_A);
+        esp_ble_gatts_create_service(gatts_if, &gatts_profile_tab[GATTS_PROFILE_SETUP].service_id, GATTS_NUM_HANDLE_C);
         break;
     case ESP_GATTS_READ_EVT: {
         ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
@@ -779,6 +704,20 @@ static void gatts_profile_IP_event_handler(esp_gatts_cb_event_t event, esp_gatt_
                                     ESP_GATT_OK, &rsp);
         break;
     }
+    case ESP_GATTS_WRITE_EVT: {
+        ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, conn_id %d, trans_id %d, handle %d\n", param->write.conn_id, param->write.trans_id, param->write.handle);
+        ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, offset: %d", param->write.offset);
+        ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
+        esp_log_buffer_hex(BLE_SECURITY_SYSTEM, param->write.value, param->write.len);
+        ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, param handle %d", param->write.handle);
+        wirte_wifi_credentials(gatts_if, &b_prepare_write_env, param);
+        break;
+    }
+    case ESP_GATTS_EXEC_WRITE_EVT:
+        ESP_LOGI(BLE_SECURITY_SYSTEM,"ESP_GATTS_EXEC_WRITE_EVT\n");
+        esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, ESP_GATT_OK, NULL);
+        example_exec_write_event_env(&b_prepare_write_env, param);
+        break;
     case ESP_GATTS_MTU_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ESP_GATTS_MTU_EVT, MTU %d\n", param->mtu.mtu);
         break;
@@ -786,16 +725,22 @@ static void gatts_profile_IP_event_handler(esp_gatts_cb_event_t event, esp_gatt_
         break;
     case ESP_GATTS_CREATE_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM, "CREATE_SERVICE_EVT, status %d,  service_handle %d\n", param->create.status, param->create.service_handle);
-        gatts_profile_tab[GATTS_PROFILE_C_APP_ID].service_handle = param->create.service_handle;
-        gatts_profile_tab[GATTS_PROFILE_C_APP_ID].char_uuid.len = ESP_UUID_LEN_128;
-        memcpy(gatts_profile_tab[GATTS_PROFILE_C_APP_ID].char_uuid.uuid.uuid128, &(service_uuid128[32]), ESP_UUID_LEN_128);
+        gatts_profile_tab[GATTS_PROFILE_SETUP].service_handle = param->create.service_handle;
+        gatts_profile_tab[GATTS_PROFILE_SETUP].char_uuid.len = ESP_UUID_LEN_128;
+        memcpy(gatts_profile_tab[GATTS_PROFILE_SETUP].char_uuid.uuid.uuid128, &(service_uuid128[32]), ESP_UUID_LEN_128);
 
-        esp_ble_gatts_start_service(gatts_profile_tab[GATTS_PROFILE_C_APP_ID].service_handle);
-        b_property = ESP_GATT_CHAR_PROP_BIT_READ;
-        esp_err_t add_char_ret =esp_ble_gatts_add_char( gatts_profile_tab[GATTS_PROFILE_C_APP_ID].service_handle, &gatts_profile_tab[GATTS_PROFILE_C_APP_ID].char_uuid,
-                                                        ESP_GATT_PERM_READ,
-                                                        b_property,
-                                                        NULL, NULL);
+        esp_ble_gatts_start_service(gatts_profile_tab[GATTS_PROFILE_SETUP].service_handle);
+        b_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE;
+        esp_err_t add_char_ret = esp_ble_gatts_add_char(gatts_profile_tab[GATTS_PROFILE_SETUP].service_handle, &gatts_profile_tab[GATTS_PROFILE_SETUP].char_uuid,
+                                                        ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, b_property, NULL, NULL);
+
+        if (add_char_ret) {
+            ESP_LOGE(BLE_SECURITY_SYSTEM, "add char failed, error code =%x\n",add_char_ret);
+        }
+
+        memcpy(gatts_profile_tab[GATTS_PROFILE_SETUP].char_uuid.uuid.uuid128, setup_char_uuid128, ESP_UUID_LEN_128);
+        add_char_ret = esp_ble_gatts_add_char(gatts_profile_tab[GATTS_PROFILE_SETUP].service_handle, &gatts_profile_tab[GATTS_PROFILE_SETUP].char_uuid,
+                                              ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, b_property, NULL, NULL);
         if (add_char_ret) {
             ESP_LOGE(BLE_SECURITY_SYSTEM, "add char failed, error code =%x\n",add_char_ret);
         }
@@ -806,15 +751,14 @@ static void gatts_profile_IP_event_handler(esp_gatts_cb_event_t event, esp_gatt_
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ADD_CHAR_EVT, status %d,  attr_handle %d, service_handle %d\n",
                  param->add_char.status, param->add_char.attr_handle, param->add_char.service_handle);
 
-        gatts_profile_tab[GATTS_PROFILE_C_APP_ID].char_handle = param->add_char.attr_handle;
-        gatts_profile_tab[GATTS_PROFILE_C_APP_ID].descr_uuid.len = ESP_UUID_LEN_16;
-        gatts_profile_tab[GATTS_PROFILE_C_APP_ID].descr_uuid.uuid.uuid16 = ESP_GATT_UUID_CHAR_CLIENT_CONFIG;
-        esp_ble_gatts_add_char_descr(gatts_profile_tab[GATTS_PROFILE_C_APP_ID].service_handle, &gatts_profile_tab[GATTS_PROFILE_C_APP_ID].descr_uuid,
-                                     ESP_GATT_PERM_READ,
-                                     NULL, NULL);
+        gatts_profile_tab[GATTS_PROFILE_SETUP].char_handle = param->add_char.attr_handle;
+        gatts_profile_tab[GATTS_PROFILE_SETUP].descr_uuid.len = ESP_UUID_LEN_16;
+        gatts_profile_tab[GATTS_PROFILE_SETUP].descr_uuid.uuid.uuid16 = ESP_GATT_UUID_CHAR_CLIENT_CONFIG;
+        esp_ble_gatts_add_char_descr(gatts_profile_tab[GATTS_PROFILE_SETUP].service_handle, &gatts_profile_tab[GATTS_PROFILE_SETUP].descr_uuid,
+                                     ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, NULL, NULL);
         break;
     case ESP_GATTS_ADD_CHAR_DESCR_EVT:
-        gatts_profile_tab[GATTS_PROFILE_C_APP_ID].descr_handle = param->add_char_descr.attr_handle;
+        gatts_profile_tab[GATTS_PROFILE_SETUP].descr_handle = param->add_char_descr.attr_handle;
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ADD_DESCR_EVT, status %d, attr_handle %d, service_handle %d\n",
                  param->add_char_descr.status, param->add_char_descr.attr_handle, param->add_char_descr.service_handle);
         break;
@@ -831,8 +775,12 @@ static void gatts_profile_IP_event_handler(esp_gatts_cb_event_t event, esp_gatt_
                  param->connect.conn_id,
                  param->connect.remote_bda[0], param->connect.remote_bda[1], param->connect.remote_bda[2],
                  param->connect.remote_bda[3], param->connect.remote_bda[4], param->connect.remote_bda[5]);
-                 gatts_profile_tab[GATTS_PROFILE_C_APP_ID].conn_id = param->connect.conn_id;
-        esp_ble_set_encryption(param->connect.remote_bda, ESP_BLE_SEC_ENCRYPT_MITM);
+        gatts_profile_tab[GATTS_PROFILE_SETUP].conn_id = param->connect.conn_id;
+        if(*security_state != Setup){
+            esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_AUTH_FAIL, NULL);
+        }else{
+            esp_ble_set_encryption(param->connect.remote_bda, ESP_BLE_SEC_ENCRYPT_MITM);
+        }
         esp_ble_gap_start_advertising(&adv_params);
         break;
     case ESP_GATTS_CONF_EVT:
@@ -852,12 +800,12 @@ static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_g
     switch (event) {
     case ESP_GATTS_REG_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM, "REGISTER_APP_EVT, status %d, app_id %d\n", param->reg.status, param->reg.app_id);
-        gatts_profile_tab[GATTS_PROFILE_B_APP_ID].service_id.is_primary = true;
-        gatts_profile_tab[GATTS_PROFILE_B_APP_ID].service_id.id.inst_id = 0x00;
-        gatts_profile_tab[GATTS_PROFILE_B_APP_ID].service_id.id.uuid.len = ESP_UUID_LEN_128;
-        memcpy(gatts_profile_tab[GATTS_PROFILE_B_APP_ID].service_id.id.uuid.uuid.uuid128, &(service_uuid128[16]), ESP_UUID_LEN_128);
+        gatts_profile_tab[GATTS_PROFILE_SENSOR].service_id.is_primary = true;
+        gatts_profile_tab[GATTS_PROFILE_SENSOR].service_id.id.inst_id = 0x00;
+        gatts_profile_tab[GATTS_PROFILE_SENSOR].service_id.id.uuid.len = ESP_UUID_LEN_128;
+        memcpy(gatts_profile_tab[GATTS_PROFILE_SENSOR].service_id.id.uuid.uuid.uuid128, &(service_uuid128[16]), ESP_UUID_LEN_128);
 
-        esp_ble_gatts_create_service(gatts_if, &gatts_profile_tab[GATTS_PROFILE_B_APP_ID].service_id, GATTS_NUM_HANDLE_TEST_A);
+        esp_ble_gatts_create_service(gatts_if, &gatts_profile_tab[GATTS_PROFILE_SENSOR].service_id, GATTS_NUM_HANDLE);
         break;
     case ESP_GATTS_READ_EVT: {
         ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
@@ -875,43 +823,14 @@ static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_g
         if (!param->write.is_prep) {
             ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
             if (*security_state == Armed && *(param->write.value) > 0){
-                *security_state = Alarm;
-                vTaskDelete(xHandle_search);
-                xTaskCreate(alarm_task, "alarm_task", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_alarm);
-                ESP_LOGI(BLE_SECURITY_SYSTEM, "Alarm triggered by sensor");
+                if (record_alarm(param->write.bda)==ESP_OK){
+                    *security_state = Alarm;
+                    vTaskDelete(xHandle_search);
+                    xTaskCreate(alarm_task, "alarm_task", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_alarm);
+                    ESP_LOGI(BLE_SECURITY_SYSTEM, "Alarm triggered by sensor");
+                }
             }
             esp_log_buffer_hex(BLE_SECURITY_SYSTEM, param->write.value, param->write.len);
-            if (gatts_profile_tab[GATTS_PROFILE_B_APP_ID].descr_handle == param->write.handle && param->write.len == 2) {
-                uint16_t descr_value= param->write.value[1]<<8 | param->write.value[0];
-                if (descr_value == NOTIFY_ENABLE) {
-                    if (b_property & ESP_GATT_CHAR_PROP_BIT_NOTIFY) {
-                        ESP_LOGI(BLE_SECURITY_SYSTEM, "notify enable\n");
-                        uint8_t notify_data[15];
-                        for (int i = 0; i < sizeof(notify_data); ++ i) {
-                            notify_data[i] = i%0xff;
-                        }
-                        //the size of notify_data[] need less than MTU size
-                        esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gatts_profile_tab[GATTS_PROFILE_B_APP_ID].char_handle,
-                                                sizeof(notify_data), notify_data, false);
-                    }
-                } else if (descr_value == INDICATE_ENABLE) {
-                    if (b_property & ESP_GATT_CHAR_PROP_BIT_INDICATE) {
-                        ESP_LOGI(BLE_SECURITY_SYSTEM, "indicate enable\n");
-                        uint8_t indicate_data[15];
-                        for (int i = 0; i < sizeof(indicate_data); ++ i) {
-                            indicate_data[i] = i%0xff;
-                        }
-                        //the size of indicate_data[] need less than MTU size
-                        esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gatts_profile_tab[GATTS_PROFILE_B_APP_ID].char_handle,
-                                                    sizeof(indicate_data), indicate_data, true);
-                    }
-                } else if (descr_value == NOTIFY_INDICATE_DISABLE) {
-                    ESP_LOGI(BLE_SECURITY_SYSTEM, "notify/indicate disable \n");
-                } else {
-                    ESP_LOGE(BLE_SECURITY_SYSTEM, "unknown value\n");
-                }
-
-            }
         }
         example_write_event_env(gatts_if, &b_prepare_write_env, param);
         break;
@@ -928,16 +847,14 @@ static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_g
         break;
     case ESP_GATTS_CREATE_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM, "CREATE_SERVICE_EVT, status %d,  service_handle %d\n", param->create.status, param->create.service_handle);
-        gatts_profile_tab[GATTS_PROFILE_B_APP_ID].service_handle = param->create.service_handle;
-        gatts_profile_tab[GATTS_PROFILE_B_APP_ID].char_uuid.len = ESP_UUID_LEN_128;
-        memcpy(gatts_profile_tab[GATTS_PROFILE_B_APP_ID].char_uuid.uuid.uuid128, &(service_uuid128[16]), ESP_UUID_LEN_128);
+        gatts_profile_tab[GATTS_PROFILE_SENSOR].service_handle = param->create.service_handle;
+        gatts_profile_tab[GATTS_PROFILE_SENSOR].char_uuid.len = ESP_UUID_LEN_128;
+        memcpy(gatts_profile_tab[GATTS_PROFILE_SENSOR].char_uuid.uuid.uuid128, &(service_uuid128[16]), ESP_UUID_LEN_128);
 
-        esp_ble_gatts_start_service(gatts_profile_tab[GATTS_PROFILE_B_APP_ID].service_handle);
-        b_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
-        esp_err_t add_char_ret =esp_ble_gatts_add_char( gatts_profile_tab[GATTS_PROFILE_B_APP_ID].service_handle, &gatts_profile_tab[GATTS_PROFILE_B_APP_ID].char_uuid,
-                                                        ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
-                                                        b_property,
-                                                        NULL, NULL);
+        esp_ble_gatts_start_service(gatts_profile_tab[GATTS_PROFILE_SENSOR].service_handle);
+        b_property = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE;
+        esp_err_t add_char_ret = esp_ble_gatts_add_char(gatts_profile_tab[GATTS_PROFILE_SENSOR].service_handle, &gatts_profile_tab[GATTS_PROFILE_SENSOR].char_uuid,
+                                                        ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, b_property, NULL, NULL);
         if (add_char_ret) {
             ESP_LOGE(BLE_SECURITY_SYSTEM, "add char failed, error code =%x\n",add_char_ret);
         }
@@ -948,15 +865,14 @@ static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_g
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ADD_CHAR_EVT, status %d,  attr_handle %d, service_handle %d\n",
                  param->add_char.status, param->add_char.attr_handle, param->add_char.service_handle);
 
-        gatts_profile_tab[GATTS_PROFILE_B_APP_ID].char_handle = param->add_char.attr_handle;
-        gatts_profile_tab[GATTS_PROFILE_B_APP_ID].descr_uuid.len = ESP_UUID_LEN_16;
-        gatts_profile_tab[GATTS_PROFILE_B_APP_ID].descr_uuid.uuid.uuid16 = ESP_GATT_UUID_CHAR_CLIENT_CONFIG;
-        esp_ble_gatts_add_char_descr(gatts_profile_tab[GATTS_PROFILE_B_APP_ID].service_handle, &gatts_profile_tab[GATTS_PROFILE_B_APP_ID].descr_uuid,
-                                     ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
-                                     NULL, NULL);
+        gatts_profile_tab[GATTS_PROFILE_SENSOR].char_handle = param->add_char.attr_handle;
+        gatts_profile_tab[GATTS_PROFILE_SENSOR].descr_uuid.len = ESP_UUID_LEN_16;
+        gatts_profile_tab[GATTS_PROFILE_SENSOR].descr_uuid.uuid.uuid16 = ESP_GATT_UUID_CHAR_CLIENT_CONFIG;
+        esp_ble_gatts_add_char_descr(gatts_profile_tab[GATTS_PROFILE_SENSOR].service_handle, &gatts_profile_tab[GATTS_PROFILE_SENSOR].descr_uuid,
+                                     ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, NULL, NULL);
         break;
     case ESP_GATTS_ADD_CHAR_DESCR_EVT:
-        gatts_profile_tab[GATTS_PROFILE_B_APP_ID].descr_handle = param->add_char_descr.attr_handle;
+        gatts_profile_tab[GATTS_PROFILE_SENSOR].descr_handle = param->add_char_descr.attr_handle;
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ADD_DESCR_EVT, status %d, attr_handle %d, service_handle %d\n",
                  param->add_char_descr.status, param->add_char_descr.attr_handle, param->add_char_descr.service_handle);
         break;
@@ -973,7 +889,7 @@ static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_g
                  param->connect.conn_id,
                  param->connect.remote_bda[0], param->connect.remote_bda[1], param->connect.remote_bda[2],
                  param->connect.remote_bda[3], param->connect.remote_bda[4], param->connect.remote_bda[5]);
-                 gatts_profile_tab[GATTS_PROFILE_B_APP_ID].conn_id = param->connect.conn_id;
+                 gatts_profile_tab[GATTS_PROFILE_SENSOR].conn_id = param->connect.conn_id;
         esp_ble_set_encryption(param->connect.remote_bda, ESP_BLE_SEC_ENCRYPT_MITM);
         esp_ble_gap_start_advertising(&adv_params);
         break;
@@ -1041,6 +957,7 @@ static void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, 
         ESP_LOGI(BLE_SECURITY_SYSTEM,"ESP_GATT_PREP_WRITE_CANCEL\n");
     }
     if (prepare_write_env->prepare_buf) {
+        printf("%s", (char*)prepare_write_env->prepare_buf);
         free(prepare_write_env->prepare_buf);
         prepare_write_env->prepare_buf = NULL;
     }
@@ -1051,10 +968,10 @@ static void gatts_profile_status_event_handler(esp_gatts_cb_event_t event, esp_g
     switch (event) {
     case ESP_GATTS_REG_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM, "REGISTER_APP_EVT, status %d, app_id %d\n", param->reg.status, param->reg.app_id);
-        gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_id.is_primary = true;
-        gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_id.id.inst_id = 0x00;
-        gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_id.id.uuid.len = ESP_UUID_LEN_128;
-        memcpy(gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_id.id.uuid.uuid.uuid128, service_uuid128, ESP_UUID_LEN_128);
+        gatts_profile_tab[GATTS_PROFILE_STATUS].service_id.is_primary = true;
+        gatts_profile_tab[GATTS_PROFILE_STATUS].service_id.id.inst_id = 0x00;
+        gatts_profile_tab[GATTS_PROFILE_STATUS].service_id.id.uuid.len = ESP_UUID_LEN_128;
+        memcpy(gatts_profile_tab[GATTS_PROFILE_STATUS].service_id.id.uuid.uuid.uuid128, service_uuid128, ESP_UUID_LEN_128);
 
         esp_err_t set_dev_name_ret = esp_ble_gap_set_device_name(GATTS_ADV_NAME);
         if (set_dev_name_ret) {
@@ -1073,7 +990,7 @@ static void gatts_profile_status_event_handler(esp_gatts_cb_event_t event, esp_g
         }
         adv_config_done |= scan_rsp_config_flag;
 
-        esp_ble_gatts_create_service(gatts_if, &gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_id, GATTS_NUM_HANDLE_TEST_A);
+        esp_ble_gatts_create_service(gatts_if, &gatts_profile_tab[GATTS_PROFILE_STATUS].service_id, GATTS_NUM_HANDLE);
         break;
     case ESP_GATTS_READ_EVT: {
         ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
@@ -1095,13 +1012,13 @@ static void gatts_profile_status_event_handler(esp_gatts_cb_event_t event, esp_g
         break;
     case ESP_GATTS_CREATE_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM, "CREATE_SERVICE_EVT, status %d,  service_handle %d\n", param->create.status, param->create.service_handle);
-        gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_handle = param->create.service_handle;
-        gatts_profile_tab[GATTS_PROFILE_A_APP_ID].char_uuid.len = ESP_UUID_LEN_128;
-        memcpy(gatts_profile_tab[GATTS_PROFILE_A_APP_ID].char_uuid.uuid.uuid128, service_uuid128, ESP_UUID_LEN_128);
+        gatts_profile_tab[GATTS_PROFILE_STATUS].service_handle = param->create.service_handle;
+        gatts_profile_tab[GATTS_PROFILE_STATUS].char_uuid.len = ESP_UUID_LEN_128;
+        memcpy(gatts_profile_tab[GATTS_PROFILE_STATUS].char_uuid.uuid.uuid128, service_uuid128, ESP_UUID_LEN_128);
 
-        esp_ble_gatts_start_service(gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_handle);
+        esp_ble_gatts_start_service(gatts_profile_tab[GATTS_PROFILE_STATUS].service_handle);
         a_property = ESP_GATT_CHAR_PROP_BIT_READ;
-        esp_err_t add_char_ret = esp_ble_gatts_add_char(gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_handle, &gatts_profile_tab[GATTS_PROFILE_A_APP_ID].char_uuid,
+        esp_err_t add_char_ret = esp_ble_gatts_add_char(gatts_profile_tab[GATTS_PROFILE_STATUS].service_handle, &gatts_profile_tab[GATTS_PROFILE_STATUS].char_uuid,
                                                         ESP_GATT_PERM_READ,
                                                         a_property,
                                                         &gatts_demo_char1_val, NULL);
@@ -1111,12 +1028,12 @@ static void gatts_profile_status_event_handler(esp_gatts_cb_event_t event, esp_g
         break;
     case ESP_GATTS_ADD_CHAR_EVT: {
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ADD_CHAR_EVT, status %d,  attr_handle %d, service_handle %d\n",
-                param->add_char.status, param->add_char.attr_handle, param->add_char.service_handle);
-        gatts_profile_tab[GATTS_PROFILE_A_APP_ID].char_handle = param->add_char.attr_handle;
-        gatts_profile_tab[GATTS_PROFILE_A_APP_ID].descr_uuid.len = ESP_UUID_LEN_16;
-        gatts_profile_tab[GATTS_PROFILE_A_APP_ID].descr_uuid.uuid.uuid16 = ESP_GATT_UUID_CHAR_CLIENT_CONFIG;
+            param->add_char.status, param->add_char.attr_handle, param->add_char.service_handle);
+        gatts_profile_tab[GATTS_PROFILE_STATUS].char_handle = param->add_char.attr_handle;
+        gatts_profile_tab[GATTS_PROFILE_STATUS].descr_uuid.len = ESP_UUID_LEN_16;
+        gatts_profile_tab[GATTS_PROFILE_STATUS].descr_uuid.uuid.uuid16 = ESP_GATT_UUID_CHAR_CLIENT_CONFIG;
 
-        esp_err_t add_descr_ret = esp_ble_gatts_add_char_descr(gatts_profile_tab[GATTS_PROFILE_A_APP_ID].service_handle, &gatts_profile_tab[GATTS_PROFILE_A_APP_ID].descr_uuid,
+        esp_err_t add_descr_ret = esp_ble_gatts_add_char_descr(gatts_profile_tab[GATTS_PROFILE_STATUS].service_handle, &gatts_profile_tab[GATTS_PROFILE_STATUS].descr_uuid,
                                                                 ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, NULL, NULL);
         if (add_descr_ret) {
             ESP_LOGE(BLE_SECURITY_SYSTEM, "add char descr failed, error code =%x\n", add_descr_ret);
@@ -1124,7 +1041,7 @@ static void gatts_profile_status_event_handler(esp_gatts_cb_event_t event, esp_g
         break;
     }
     case ESP_GATTS_ADD_CHAR_DESCR_EVT:
-        gatts_profile_tab[GATTS_PROFILE_A_APP_ID].descr_handle = param->add_char_descr.attr_handle;
+        gatts_profile_tab[GATTS_PROFILE_STATUS].descr_handle = param->add_char_descr.attr_handle;
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ADD_DESCR_EVT, status %d, attr_handle %d, service_handle %d\n",
                  param->add_char_descr.status, param->add_char_descr.attr_handle, param->add_char_descr.service_handle);
         break;
@@ -1133,12 +1050,12 @@ static void gatts_profile_status_event_handler(esp_gatts_cb_event_t event, esp_g
                  param->start.status, param->start.service_handle);
         break;
     case ESP_GATTS_CONNECT_EVT: {
-        
+
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ESP_GATTS_CONNECT_EVT, conn_id %d, remote %02x:%02x:%02x:%02x:%02x:%02x\n",
                  param->connect.conn_id,
                  param->connect.remote_bda[0], param->connect.remote_bda[1], param->connect.remote_bda[2],
                  param->connect.remote_bda[3], param->connect.remote_bda[4], param->connect.remote_bda[5]);
-        gatts_profile_tab[GATTS_PROFILE_A_APP_ID].conn_id = param->connect.conn_id;
+        gatts_profile_tab[GATTS_PROFILE_STATUS].conn_id = param->connect.conn_id;
         esp_ble_set_encryption(param->connect.remote_bda, ESP_BLE_SEC_ENCRYPT_MITM);
         esp_ble_gap_start_advertising(&adv_params);
         break;
@@ -1173,8 +1090,7 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
         }
     }
 
-    /* If the gatts_if equal to profile A, call profile A cb handler,
-     * so here call each profile's callback */
+    // register callbacks for server profiles
     do {
         int idx;
         for (idx = 0; idx < GATTS_PROFILE_NUM; idx ++) {
@@ -1191,6 +1107,8 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
 void app_main(){
     esp_err_t ret;
     nvs_handle_t nvs_handle;
+
+    uint8_t wifi_credentials_loaded = 0;
 
     *security_state = Disarmed;
 
@@ -1224,6 +1142,7 @@ void app_main(){
         ret = nvs_get_str(nvs_handle, "ssid", wifi_ssid, &str_len);
         switch (ret) {
             case ESP_OK:
+                wifi_credentials_loaded = 1;
                 printf("SSID Done...");
                 break;
             case ESP_ERR_NVS_NOT_FOUND:
@@ -1285,8 +1204,10 @@ void app_main(){
             nvs_stats.used_entries, nvs_stats.free_entries, nvs_stats.total_entries);
 
     // init rest server
-    ESP_ERROR_CHECK(wifi_connect());
-    ESP_ERROR_CHECK(start_rest_server());
+    if(wifi_credentials_loaded){
+        ESP_ERROR_CHECK(wifi_connect());
+        ESP_ERROR_CHECK(start_rest_server());
+    }
 
     // init BLE
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
@@ -1370,19 +1291,19 @@ void app_main(){
         return;
     }
 
-    ret = esp_ble_gatts_app_register(GATTS_PROFILE_A_APP_ID);
+    ret = esp_ble_gatts_app_register(GATTS_PROFILE_STATUS);
     if (ret) {
         ESP_LOGE(BLE_SECURITY_SYSTEM, "gatts app register error, error code = %x", ret);
         return;
     }
 
-    ret = esp_ble_gatts_app_register(GATTS_PROFILE_B_APP_ID);
+    ret = esp_ble_gatts_app_register(GATTS_PROFILE_SENSOR);
     if (ret) {
         ESP_LOGE(BLE_SECURITY_SYSTEM, "gatts app register error, error code = %x", ret);
         return;
     }
 
-    ret = esp_ble_gatts_app_register(GATTS_PROFILE_C_APP_ID);
+    ret = esp_ble_gatts_app_register(GATTS_PROFILE_SETUP);
     if (ret) {
         ESP_LOGE(BLE_SECURITY_SYSTEM, "gatts app register error, error code = %x", ret);
         return;
@@ -1425,6 +1346,18 @@ void app_main(){
     ledc_fade_func_install(0);
 
     xTaskCreate(increment_sensor_beeps_task, "increment_beeps", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_increment_beeps);
+
+    //init SNTP for alarm logging
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setservername(0, "pool.ntp.org");
+    sntp_init();
+    ESP_LOGI(TAG, "Waiting for system time to be set... ");
+    int retry = 0;
+    const int retry_count = 10;
+    while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
+        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
 
     ESP_LOGI("app-main", "inicialization end");
 }

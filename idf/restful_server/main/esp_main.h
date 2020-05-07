@@ -10,7 +10,7 @@
 #include "esp_gatts_api.h"
 #include "esp_vfs_fat.h"
 #include "lwip/apps/netbiosns.h"
-#include "mdns.h"
+#include "esp_sntp.h"
 #include "nvs_flash.h"
 #include "protocol_examples_common.h"
 #include "driver/gpio.h"
@@ -21,9 +21,11 @@
 #include "rest_server.h"
 #include "alarm.h"
 #include "wifi_connect.h"
+#include "sensors.h"
 
 // BLE
-#define GATTS_NUM_HANDLE_TEST_A     4
+#define GATTS_NUM_HANDLE            4
+#define GATTS_NUM_HANDLE_C          6
 
 #define GATTS_DEMO_CHAR_VAL_LEN_MAX 0x40
 #define PREPARE_BUF_MAX_SIZE        1024
@@ -32,16 +34,16 @@
 #define scan_rsp_config_flag        (1 << 1)
 
 #define GATTS_PROFILE_NUM           3
-#define GATTS_PROFILE_A_APP_ID      0
-#define GATTS_PROFILE_B_APP_ID      1
-#define GATTS_PROFILE_C_APP_ID      2
+#define GATTS_PROFILE_STATUS        0
+#define GATTS_PROFILE_SENSOR        1
+#define GATTS_PROFILE_SETUP         2
 #define GATTC_PROFILE_NUM           1
-#define GATTC_PROFILE_D_APP_ID      0
+#define GATTC_PROFILE               0
 
 #define BLE_SECURITY_SYSTEM         "BLE_SECURITY_SYSTEM"
-#define REMOTE_SERVICE_UUID         ESP_GATT_UUID_HEART_RATE_SVC
+#define REMOTE_SERVICE_UUID         0x1800 // Generic Access
 #define REMOTE_NOTIFY_UUID          0x2A37
-#define REMOTE_NOTIFY_CHAR_UUID     0xFF01
+#define REMOTE_NOTIFY_CHAR_UUID     0x2A00 // Device name
 #define NOTIFY_ENABLE               0x0001
 #define INDICATE_ENABLE             0x0002
 #define NOTIFY_INDICATE_DISABLE     0x0000
@@ -60,6 +62,11 @@ extern TaskHandle_t xHandle_alarm;
 extern TaskHandle_t xHandle_search;
 extern uint8_t new_address[6];
 extern esp_ip4_addr_t s_ip_addr;
+extern sensor_t sensors[MAX_NUMBER_OF_SENSORS];
+extern uint8_t number_of_sensors;
+extern TaskHandle_t xHandle_increment_beeps;
+extern const char sensors_nvs_key[5][3];
+extern time_t last_alarm;
 
 typedef struct {
     uint8_t *prepare_buf;
@@ -91,12 +98,6 @@ struct gattc_profile_inst {
     uint16_t notify_char_handle;
     esp_bd_addr_t remote_bda;
 };
-
-esp_err_t compare_uuids(uint8_t *uuid1, uint8_t *uuid2);
-
-esp_err_t add_new_sensor(uint8_t *address);
-
-esp_err_t remove_sensor(uint8_t *address);
 
 void app_main();
 

@@ -145,7 +145,6 @@ static esp_err_t add_device_post_handler(httpd_req_t *req){
     char* address_str = cJSON_GetObjectItem(root, "address")->valuestring;
     ESP_LOGI(REST_TAG, "Connecting to: address = %s", address_str);
     char str[3] = "\0\0\0";
-    ESP_LOGI(REST_TAG, "address to be added: %s", address_str);
     for (int i = 0; i < ESP_BD_ADDR_LEN; i++){
         str[0] = address_str[0];
         str[1] = address_str[1];
@@ -161,6 +160,36 @@ static esp_err_t add_device_post_handler(httpd_req_t *req){
     
     cJSON_Delete(root);
     httpd_resp_sendstr(req, "Check your device to accept bonding request");
+    return ESP_OK;
+}
+
+static esp_err_t rssi_device_post_handler(httpd_req_t *req){
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (check_state(req) != ESP_OK){
+        return ESP_FAIL;
+    }
+    int total_len = req->content_len;
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        return ESP_FAIL;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+            return ESP_FAIL;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+
+    cJSON *root = cJSON_Parse(buf);
+    rssi = cJSON_GetObjectItem(root, "rssi")->valueint;
+    httpd_resp_sendstr(req, "Code was successfully changed");
+    cJSON_Delete(root);
     return ESP_OK;
 }
 
@@ -264,6 +293,7 @@ static esp_err_t sensors_list_get_handler(httpd_req_t *req){
         return ESP_FAIL;
     }
     httpd_resp_set_type(req, "application/json");
+    cJSON *root_json_obj = cJSON_CreateObject();
     cJSON *json_list = cJSON_CreateArray();
     cJSON *json_obj;
     char address[20];
@@ -274,16 +304,21 @@ static esp_err_t sensors_list_get_handler(httpd_req_t *req){
         sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", a[0], a[1], a[2], a[3], a[4], a[5]);
         json_obj = cJSON_CreateObject();
         cJSON_AddStringToObject(json_obj, "address", (const char*)address);
+        cJSON_AddNumberToObject(json_obj, "last_alarm", sensors[i].last_alarm);
+        cJSON_AddNumberToObject(json_obj, "last_connection", sensors[i].last_connection);
         cJSON_AddItemToArray(json_list, json_obj);
     }
+    cJSON_AddItemToObject(root_json_obj, "list", json_list);
     sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", unknown_sensor[0], unknown_sensor[1], unknown_sensor[2], unknown_sensor[3], unknown_sensor[4], unknown_sensor[5]);
-    cJSON_AddStringToObject(json_list, "unknown", (const char*)address);
-    
-    const char *sensors_list = cJSON_Print(json_list);
+    if(strcmp("00:00:00:00:00:00", address)){
+        cJSON_AddStringToObject(root_json_obj, "unknown", (const char*)address);
+    }
+
+    const char *sensors_list = cJSON_Print(root_json_obj);
     httpd_resp_sendstr(req, sensors_list);
     ESP_LOGI(REST_TAG,"resp: %s", sensors_list);
     free((void *)sensors_list);
-    cJSON_Delete(json_list);
+    cJSON_Delete(root_json_obj);
     return ESP_OK;
 }
 
@@ -313,7 +348,6 @@ static esp_err_t sensors_add_post_handler(httpd_req_t *req){
     char* address_str = cJSON_GetObjectItem(root, "address")->valuestring;
     esp_bd_addr_t address_hex;
     char str[3] = "\0\0\0";
-    ESP_LOGI(REST_TAG, "address to be added: %s", address_str);
     for (int i = 0; i < ESP_BD_ADDR_LEN; i++){
         str[0] = address_str[0];
         str[1] = address_str[1];
@@ -359,7 +393,6 @@ static esp_err_t sensors_remove_post_handler(httpd_req_t *req){
     char* address_str = cJSON_GetObjectItem(root, "address")->valuestring;
     esp_bd_addr_t address_hex;
     char str[3] = "\0\0\0";
-    ESP_LOGI(REST_TAG, "address to be removed: %s", address_str);
     for (int i = 0; i < ESP_BD_ADDR_LEN; i++){
         str[0] = address_str[0];
         str[1] = address_str[1];
@@ -379,6 +412,24 @@ static esp_err_t sensors_remove_post_handler(httpd_req_t *req){
     return ESP_OK;
 }
 
+static esp_err_t status_get_handler(httpd_req_t *req){
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_type(req, "application/json");
+    cJSON *root_json_obj = cJSON_CreateObject();
+
+    cJSON_AddStringToObject(root_json_obj, "status", (const char*)state_to_str());
+    cJSON_AddNumberToObject(root_json_obj, "alarm", last_alarm);
+    cJSON_AddNumberToObject(root_json_obj, "sensors", number_of_sensors);
+    cJSON_AddNumberToObject(root_json_obj, "notResponding", not_responding());
+
+    const char *response = cJSON_Print(root_json_obj);
+    httpd_resp_sendstr(req, response);
+    ESP_LOGI(REST_TAG,"resp: %s", response);
+    free((void *)response);
+    cJSON_Delete(root_json_obj);
+    return ESP_OK;
+}
+
 static esp_err_t default_options_handler(httpd_req_t *req){
     ESP_LOGI(REST_TAG, "Options req received");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
@@ -392,6 +443,9 @@ esp_err_t start_rest_server(){
 
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.max_uri_handlers = 16;
+    config.max_resp_headers = 16;
+    config.stack_size = 4096*2;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
     ESP_LOGI(REST_TAG, "Starting HTTP Server");
@@ -413,6 +467,14 @@ esp_err_t start_rest_server(){
         .user_ctx = rest_context
     };
     httpd_register_uri_handler(server, &ble_add_device_post_uri);
+
+    httpd_uri_t ble_rssi_device_post_uri = {
+        .uri = "/ble/device/rssi",
+        .method = HTTP_POST,
+        .handler = rssi_device_post_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &ble_rssi_device_post_uri);
 
     httpd_uri_t ble_remove_device_post_uri = {
         .uri = "/ble/device/remove",
@@ -447,7 +509,7 @@ esp_err_t start_rest_server(){
     httpd_register_uri_handler(server, &sensors_list_get_uri);
 
     httpd_uri_t sensors_add_post_uri = {
-        .uri = "/system/add",
+        .uri = "/sensors/add",
         .method = HTTP_POST,
         .handler = sensors_add_post_handler,
         .user_ctx = rest_context
@@ -455,7 +517,7 @@ esp_err_t start_rest_server(){
     httpd_register_uri_handler(server, &sensors_add_post_uri);
 
     httpd_uri_t sensors_remove_post_uri = {
-        .uri = "/system/remove",
+        .uri = "/sensors/remove",
         .method = HTTP_POST,
         .handler = sensors_remove_post_handler,
         .user_ctx = rest_context
@@ -469,6 +531,14 @@ esp_err_t start_rest_server(){
         .user_ctx = rest_context
     };
     httpd_register_uri_handler(server, &system_arm_get_uri);
+
+    httpd_uri_t status_get_uri = {
+        .uri = "/status",
+        .method = HTTP_GET,
+        .handler = status_get_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &status_get_uri);
 
     // Common hadler for options
     httpd_uri_t default_options_uri = {
