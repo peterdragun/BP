@@ -164,16 +164,22 @@ export default class extends React.Component {
       await new Promise(function (resolve, reject) {
         bluetoothle.read(resolve, reject, { address: address, service: serviceUuid, characteristic: serviceUuid });
       }).then(succ => {
+        state.setState({popupOpened : false})
         var arr = bluetoothle.encodedStringToBytes(succ.value);
+        this.props.f7router.app.toast.show({
+          text: 'Main unit was found and IP address was stored.',
+          closeTimeout: 2000,
+        })
         var ip = ""
         for (let element of arr) {
           ip = ip + '.' + element;
         }
         localStorage.ip = ip.substr(1);
         state.log(localStorage.ip)
-        state.setState({ popupTitle: "Success", popupOpened : true, message: "IP address was successfully stored" })
+        BleClose();
+        state.props.f7router.app.views.main.router.navigate("/");
+
       }, error => state.handle_error(error));
-      BleClose();
     }
 
     var serviceUuid = "1BA2ECFF-FFCE-4B4E-8562-78F5DCF950B3"

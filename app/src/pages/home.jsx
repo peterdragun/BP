@@ -21,13 +21,13 @@ export default class Home extends React.Component {
     super(props);
 
     this.state = {
-      popupOpened: props.f7route.errorPopup,
+      popupOpened: false,
       message: "",
       popupTitle: "Error",
-      status: props.f7route.context.status,
-      alarm: props.f7route.context.alarm,
-      sensors: props.f7route.context.sensors,
-      notResponding: props.f7route.context.notResponding,
+      status: "N/A",
+      alarm: "N/A",
+      sensors: "N/A",
+      notResponding: "N/A",
       refresh: false,
       lastRefresh: "N/A",
     }
@@ -61,9 +61,9 @@ export default class Home extends React.Component {
 
         <BlockTitle>Navigation</BlockTitle>
         <List>
+          <ListItem link="/sensors/" panelClose title="Sensors"/>
           <ListItem link="/scan/" title="Scan"/>
           <ListItem link="/whitelist/" title="Whitelist"/>
-          <ListItem link="/sensors/" panelClose title="Sensors"/>
           <ListItem link="/change-code/" title="Change alarm code"/>
           <ListItem link="/setup/" panelClose title="Setup"/>
         </List>

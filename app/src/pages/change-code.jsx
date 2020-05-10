@@ -29,34 +29,32 @@ export default class extends React.Component {
     return (
       <Page>
         <Navbar title="Alarm Code" backLink="Back"/>
-        <Block>
-          <List>
-            <ListInput
-              type="number"
-              label="Current code"
-              required
-              info="Default code is 123456"
-              min="0"
-              max="9223372036854775807" // 64bit max val
-              placeholder="123456"
-              value={this.state.code}
-              onChange={(event) => this.setState({code: event.target.value})}
-            />
-            <ListInput
-              type="number"
-              label="New code"
-              required
-              min="0"
-              max="9223372036854775807" // 64bit max val
-              placeholder="1234"
-              value={this.state.new_code}
-              onChange={(event) => this.setState({new_code: event.target.value})}
-            />
-            <ListItem>
-              <Button fill onClick={() => this.handleClick()}>Change</Button>
-            </ListItem>
-          </List>
-        </Block>
+        <List>
+          <ListInput
+            type="number"
+            label="Current code"
+            required
+            info="Default code is 123456"
+            min="0"
+            max="9223372036854775807" // 64bit max val
+            placeholder="123456"
+            value={this.state.code}
+            onChange={(event) => this.setState({code: event.target.value})}
+          />
+          <ListInput
+            type="number"
+            label="New code"
+            required
+            min="0"
+            max="9223372036854775807" // 64bit max val
+            placeholder="1234"
+            value={this.state.new_code}
+            onChange={(event) => this.setState({new_code: event.target.value})}
+          />
+          <ListItem>
+            <Button fill onClick={() => this.handleClick()}>Change</Button>
+          </ListItem>
+        </List>
         <Popup opened={this.state.popupOpened} onPopupClosed={() => this.setState({popupOpened : false})}>
           <Page>
             <Navbar title={this.state.popupTitle}>

@@ -20,6 +20,8 @@ function removeDuplicates(keyFn, array){
     if(values.indexOf(value) === -1) {
       trimmedArray.push(array[i]);
       values.push(value);
+    }else if (array[i]["name"]){
+      trimmedArray[values.indexOf(value)]["name"] = array[i]["name"];
     }
   }
 
@@ -29,82 +31,7 @@ function removeDuplicates(keyFn, array){
 var routes = [
   {
     path: '/',
-    async: function (routeTo, routeFrom, resolve, reject) {
-      resolve(
-        {
-          component: HomePage,
-        },
-        {
-          context: {
-            status: "N/A",
-            sensors: "N/A",
-            alarm: "N/A",
-            notResponding: "N/A",
-            errorPopup: true,
-            message: "Please click on 'Find main unit' button on Setup page",
-          }
-        }
-      );
-      return;
-      if (typeof localStorage.ip == 'undefined'){
-        resolve(
-          {
-            component: HomePage,
-          },
-          {
-            context: {
-              status: "N/A",
-              sensors: "N/A",
-              alarm: "N/A",
-              notResponding: "N/A",
-              errorPopup: true,
-              message: "Please click on 'Find main unit' button on Setup page",
-            }
-          }
-        );
-      }else{
-        axios({
-          method: 'get',
-          url: 'http://' + localStorage.ip + '/status',
-          timeout: 3000
-        }).then(response => {
-          console.log(response);
-          resolve(
-            {
-              component: ScanPage,
-            },
-            {
-              context: {
-                status: response.status,
-                sensors: response.sensors,
-                alarm: response.alarm,
-                notResponding: response.notResponding,
-                errorPopup: false,
-                message: "",
-              }
-            }
-          );
-        }, error => {
-          console.log(error),
-          this.app.preloader.hide();
-          resolve(
-            {
-              component: ScanPage,
-            },
-            {
-              context: {
-                status: "N/A",
-                sensors: "N/A",
-                alarm: "N/A",
-                notResponding: "N/A",
-                errorPopup: true,
-                message: error.message,
-              }
-            }
-          );
-        });
-      }
-    }
+    component: HomePage,
   },
   {
     path: '/about/',
@@ -241,7 +168,7 @@ var routes = [
               sensors: {result: []},
               unknown: "",
               message: "Please click on 'Find main unit' button on Setup page",
-              errorPopup: false,
+              errorPopup: true,
             }
           }
         );

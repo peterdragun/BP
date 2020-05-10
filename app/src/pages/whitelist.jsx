@@ -13,6 +13,7 @@ import {
   Block,
   ListItem,
   BlockTitle,
+  ListInput,
 } from 'framework7-react';
 import axios from 'axios'
 
@@ -34,7 +35,18 @@ export default class extends React.Component {
       <Page>
         <Navbar title="Whitelist" backLink="Back" />
         <List>
-          <ListItem title={`RSSI: ${list.rssi}`}/>
+          <ListInput
+            label="RSSI"
+            type="number"
+            min="-90"
+            max="-30"
+            placeholder="N/A"
+            value={list.rssi}
+            onChange={(event) => this.setState({rssi: event.target.value})}
+          />
+          <ListItem>
+            <Button fill onClick={() => this.handleClick(this.state.rssi, "RSSI")} text="Change"/>
+          </ListItem>
         </List>
         <BlockTitle>Devices</BlockTitle>
         <List>
@@ -43,7 +55,7 @@ export default class extends React.Component {
               <CardHeader>{`Address: ${device.address}`}</CardHeader>
               <CardFooter>
                 <Link></Link>
-                <Button fill raised color="red" onClick={() => this.handleClick(device.address.replace(/:/g,''))}>Remove</Button>
+                <Button fill raised color="red" onClick={() => this.handleClick(device.address.replace(/:/g,'', "remove"))}>Remove</Button>
               </CardFooter>
             </Card>
           ))}
@@ -63,18 +75,29 @@ export default class extends React.Component {
       </Page>
     );
   }
-  handleClick (address) {
+  handleClick (value, type) {
     if (typeof localStorage.ip == 'undefined'){
       this.setState({ popupTitle: "Error", popupOpened : true, message: "Please click on 'Find main unit' button on Setup page" })
       return;
     }
+    var url = 'http://' + localStorage.ip;
+    var data;
+    if(type == "RSSI"){
+      url = url + '/ble/device/rssi'
+      data = {
+        rssi: value,
+      }
+    }else{
+      url = url + '/ble/device/remove'
+      data = {
+        address: value,
+      }
+    }
     axios({
       method: 'post',
-      url: 'http://' + localStorage.ip + '/ble/device/remove',
+      url: url,
       timeout: 3000,
-      data: {
-        address: address,
-      }
+      data: data,
     }).then(response => {this.setState({ popupTitle: "Sucess", popupOpened : true, message: response.data })}, 
     error => {
       console.log(error);
