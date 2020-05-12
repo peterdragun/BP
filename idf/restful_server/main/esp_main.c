@@ -16,8 +16,6 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
 static void gatts_profile_status_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 static void gatts_profile_setup_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
-static void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param);
-static void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param);
 
 static esp_bt_uuid_t remote_filter_service_uuid = {
     .len = ESP_UUID_LEN_16,
@@ -630,7 +628,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp
     } while (0);
 }
 
-static void wirte_wifi_credentials(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param) {
+static void write_wifi_credentials(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param) {
     esp_err_t ret;
     nvs_handle_t nvs_handle;
     if (param->write.handle == 50){ //SSID
@@ -665,17 +663,17 @@ static void wirte_wifi_credentials(esp_gatt_if_t gatts_if, prepare_type_env_t *p
         // ESP_ERROR_CHECK(wifi_connect());
         // ESP_ERROR_CHECK(start_rest_server());
     }
-    esp_gatt_rsp_t *gatt_rsp = (esp_gatt_rsp_t *)malloc(sizeof(esp_gatt_rsp_t));
-    gatt_rsp->attr_value.len = param->write.len;
-    gatt_rsp->attr_value.handle = param->write.handle;
-    gatt_rsp->attr_value.offset = param->write.offset;
-    gatt_rsp->attr_value.auth_req = ESP_GATT_AUTH_REQ_NONE;
-    memcpy(gatt_rsp->attr_value.value, param->write.value, param->write.len);
-    esp_err_t response_err = esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, ESP_GATT_OK, gatt_rsp);
-    if (response_err != ESP_OK) {
-        ESP_LOGE(BLE_SECURITY_SYSTEM, "Send response error\n");
-    }
-    free(gatt_rsp);
+    // esp_gatt_rsp_t *gatt_rsp = (esp_gatt_rsp_t *)malloc(sizeof(esp_gatt_rsp_t));
+    // gatt_rsp->attr_value.len = param->write.len;
+    // gatt_rsp->attr_value.handle = param->write.handle;
+    // gatt_rsp->attr_value.offset = param->write.offset;
+    // gatt_rsp->attr_value.auth_req = ESP_GATT_AUTH_REQ_NONE;
+    // memcpy(gatt_rsp->attr_value.value, param->write.value, param->write.len);
+    // esp_err_t response_err = esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, ESP_GATT_OK, gatt_rsp);
+    // if (response_err != ESP_OK) {
+    //     ESP_LOGE(BLE_SECURITY_SYSTEM, "Send response error\n");
+    // }
+    // free(gatt_rsp);
 }
 
 
@@ -710,13 +708,12 @@ static void gatts_profile_setup_event_handler(esp_gatts_cb_event_t event, esp_ga
         ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
         esp_log_buffer_hex(BLE_SECURITY_SYSTEM, param->write.value, param->write.len);
         ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, param handle %d", param->write.handle);
-        wirte_wifi_credentials(gatts_if, &b_prepare_write_env, param);
+        write_wifi_credentials(gatts_if, &b_prepare_write_env, param);
         break;
     }
     case ESP_GATTS_EXEC_WRITE_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM,"ESP_GATTS_EXEC_WRITE_EVT\n");
         esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, ESP_GATT_OK, NULL);
-        example_exec_write_event_env(&b_prepare_write_env, param);
         break;
     case ESP_GATTS_MTU_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ESP_GATTS_MTU_EVT, MTU %d\n", param->mtu.mtu);
@@ -823,8 +820,10 @@ static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_g
         if (!param->write.is_prep) {
             ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
             esp_log_buffer_hex(BLE_SECURITY_SYSTEM, param->write.value, param->write.len);
-            if (compare_uint8_array(param->write.bda, unknown_sensor)){
+            esp_log_buffer_hex(BLE_SECURITY_SYSTEM, unknown_sensor, 6);
+            if (compare_uint8_array(param->write.bda, unknown_sensor) == ESP_OK){
                 unknown_sensor_type = *(param->write.value);
+                ESP_LOGI(BLE_SECURITY_SYSTEM, "Type: %d", unknown_sensor_type);
             }else{
                 if (*security_state == Armed && *(param->write.value) > 0){
                     if (record_alarm(param->write.bda)==ESP_OK){
@@ -836,13 +835,11 @@ static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_g
                 }
             }
         }
-        // example_write_event_env(gatts_if, &b_prepare_write_env, param);
         break;
     }
     case ESP_GATTS_EXEC_WRITE_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM,"ESP_GATTS_EXEC_WRITE_EVT\n");
         esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, ESP_GATT_OK, NULL);
-        example_exec_write_event_env(&b_prepare_write_env, param);
         break;
     case ESP_GATTS_MTU_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ESP_GATTS_MTU_EVT, MTU %d\n", param->mtu.mtu);
@@ -908,64 +905,6 @@ static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_g
     default:
         break;
     }
-}
-
-static void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param) {
-    esp_gatt_status_t status = ESP_GATT_OK;
-    if (param->write.need_rsp) {
-        if (param->write.is_prep) {
-            if (prepare_write_env->prepare_buf == NULL) {
-                prepare_write_env->prepare_buf = (uint8_t *)malloc(PREPARE_BUF_MAX_SIZE*sizeof(uint8_t));
-                prepare_write_env->prepare_len = 0;
-                if (prepare_write_env->prepare_buf == NULL) {
-                    ESP_LOGE(BLE_SECURITY_SYSTEM, "Gatt_server prep no mem\n");
-                    status = ESP_GATT_NO_RESOURCES;
-                }
-            } else {
-                if(param->write.offset > PREPARE_BUF_MAX_SIZE) {
-                    status = ESP_GATT_INVALID_OFFSET;
-                } else if ((param->write.offset + param->write.len) > PREPARE_BUF_MAX_SIZE) {
-                    status = ESP_GATT_INVALID_ATTR_LEN;
-                }
-            }
-
-            esp_gatt_rsp_t *gatt_rsp = (esp_gatt_rsp_t *)malloc(sizeof(esp_gatt_rsp_t));
-            gatt_rsp->attr_value.len = param->write.len;
-            gatt_rsp->attr_value.handle = param->write.handle;
-            gatt_rsp->attr_value.offset = param->write.offset;
-            gatt_rsp->attr_value.auth_req = ESP_GATT_AUTH_REQ_NONE;
-            memcpy(gatt_rsp->attr_value.value, param->write.value, param->write.len);
-            esp_err_t response_err = esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, status, gatt_rsp);
-            if (response_err != ESP_OK) {
-               ESP_LOGE(BLE_SECURITY_SYSTEM, "Send response error\n");
-            }
-            free(gatt_rsp);
-            if (status != ESP_GATT_OK) {
-                return;
-            }
-            memcpy(prepare_write_env->prepare_buf + param->write.offset,
-                   param->write.value,
-                   param->write.len);
-            prepare_write_env->prepare_len += param->write.len;
-
-        } else {
-            esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, status, NULL);
-        }
-    }
-}
-
-static void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param) {
-    if (param->exec_write.exec_write_flag == ESP_GATT_PREP_WRITE_EXEC) {
-        esp_log_buffer_hex(BLE_SECURITY_SYSTEM, prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
-    } else {
-        ESP_LOGI(BLE_SECURITY_SYSTEM,"ESP_GATT_PREP_WRITE_CANCEL\n");
-    }
-    if (prepare_write_env->prepare_buf) {
-        printf("%s", (char*)prepare_write_env->prepare_buf);
-        free(prepare_write_env->prepare_buf);
-        prepare_write_env->prepare_buf = NULL;
-    }
-    prepare_write_env->prepare_len = 0;
 }
 
 static void gatts_profile_status_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param) {
