@@ -60,11 +60,11 @@ extern char expected_code[19];
 extern state_enum_t *security_state;
 extern TaskHandle_t xHandle_alarm;
 extern TaskHandle_t xHandle_search;
+extern TaskHandle_t xHandle_increment;
 extern uint8_t new_address[6];
 extern esp_ip4_addr_t s_ip_addr;
 extern sensor_t sensors[MAX_NUMBER_OF_SENSORS];
 extern uint8_t number_of_sensors;
-extern TaskHandle_t xHandle_increment_beeps;
 extern const char sensors_nvs_key[5][3];
 extern time_t last_alarm;
 

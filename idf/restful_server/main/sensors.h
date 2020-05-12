@@ -8,6 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
+#include "driver/gpio.h"
 
 #include "alarm.h"
 
@@ -17,6 +18,9 @@
 
 extern state_enum_t *security_state;
 extern time_t last_alarm;
+extern ledc_channel_config_t ledc_channel[LEDC_CH_NUM];
+extern TaskHandle_t xHandle_alarm;
+extern TaskHandle_t xHandle_search;
 
 typedef struct{
     uint8_t address[6];
@@ -37,6 +41,6 @@ esp_err_t record_alarm(uint8_t *address);
 
 int not_responding();
 
-void increment_sensor_beeps_task();
+void increment_sensor_task();
 
 #endif

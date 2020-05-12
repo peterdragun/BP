@@ -3,7 +3,7 @@
 uint8_t unknown_sensor[6];
 sensor_t sensors[MAX_NUMBER_OF_SENSORS];
 uint8_t number_of_sensors = 0;
-TaskHandle_t xHandle_increment_beeps;
+TaskHandle_t xHandle_increment;
 const char sensors_nvs_key[5][3] = {"s1\0", "s2\0", "s3\0", "s4\0", "s5\0" };
 
 esp_err_t compare_uuids(uint8_t *uuid1, uint8_t *uuid2){
@@ -34,6 +34,12 @@ esp_err_t record_sensor(uint8_t *address){
             unknown_sensor[i] = address[i];
         }
         return ESP_FAIL;
+    }
+    if(sensors[idx].missed_beeps >= 3 && not_responding() <= 1){
+        for (int ch = 1; ch < LEDC_CH_NUM; ch++) {
+            ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
+            ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
+        }
     }
     sensors[idx].missed_beeps = 0;
     time(&sensors[idx].last_connection);
@@ -121,15 +127,23 @@ int not_responding(){
     return cnt;
 }
 
-void increment_sensor_beeps_task(){
+void increment_sensor_task(){
     uint8_t wait_time;
     while (1) {
         ESP_LOGI("incrementing task", "start");
         for(uint8_t i = 0; i < number_of_sensors; i++){
             sensors[i].missed_beeps++;
             if (sensors[i].missed_beeps++ >= 4){
-                //BAD - alarm or smth
-                ESP_LOGE("incrementing task", "senozor sa nehlasi!!!!!");
+                ESP_LOGE("incrementing task", "senosor is not responding!!!");
+                if(*security_state < Activating){
+                    ledc_set_duty(ledc_channel[2].speed_mode, ledc_channel[2].channel, LEDC_DUTY);
+                    ledc_update_duty(ledc_channel[2].speed_mode, ledc_channel[2].channel);
+                }else if (*security_state == Armed){
+                    ESP_LOGI(SECURITY_SYSTEM, "Alarm");
+                    *security_state = Alarm;
+                    vTaskDelete(xHandle_search);
+                    xTaskCreate(alarm_task, "alarm_task", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_alarm);
+                }
             }
         }
         wait_time = 40;

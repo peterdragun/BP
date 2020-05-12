@@ -43,11 +43,12 @@ static esp_err_t list_device_get_handler(httpd_req_t *req){
     httpd_resp_set_type(req, "application/json");
     int bond_cnt = esp_ble_get_bond_device_num();
     esp_ble_bond_dev_t list[bond_cnt];
-    esp_ble_bond_dev_t new_list[bond_cnt-number_of_sensors];
     ESP_LOGI(REST_TAG,"list length: %d", bond_cnt);
     esp_ble_get_bond_device_list(&bond_cnt, list);
     char address[20];
+    uint8_t not_sensor = 1;
     uint8_t *a;
+    cJSON *root_obj = cJSON_CreateObject();
     cJSON *json_list = cJSON_CreateArray();
     cJSON *json_obj;
     int new_i = 0;
@@ -59,21 +60,26 @@ static esp_err_t list_device_get_handler(httpd_req_t *req){
                 break;
             }
             if (compare_uuids(sensors[j].address, list[i].bd_addr)==ESP_FAIL){
-                new_list[new_i] = list[i];
-                new_i++;
+                not_sensor = 0;
             }
         }
-        a = new_list[i].bd_addr;
-        sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", a[0], a[1], a[2], a[3], a[4], a[5]);
-        json_obj = cJSON_CreateObject();
-        cJSON_AddStringToObject(json_obj, "address", (const char*)address);
-        cJSON_AddItemToArray(json_list, json_obj);
+        if (not_sensor){
+            a = list[i].bd_addr;
+            sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", a[0], a[1], a[2], a[3], a[4], a[5]);
+            json_obj = cJSON_CreateObject();
+            cJSON_AddStringToObject(json_obj, "address", (const char*)address);
+            cJSON_AddItemToArray(json_list, json_obj);
+        }else{
+            not_sensor = 1;
+        }
     }
-    const char *scan = cJSON_Print(json_list);
+    cJSON_AddItemToObject(root_obj, "list", json_list);
+    cJSON_AddNumberToObject(root_obj, "rssi", rssi);
+    const char *scan = cJSON_Print(root_obj);
     httpd_resp_sendstr(req, scan);
     ESP_LOGI(REST_TAG,"resp: %s", scan);
     free((void *)scan);
-    cJSON_Delete(json_list);
+    cJSON_Delete(root_obj);
     return ESP_OK;
 }
 
@@ -188,7 +194,7 @@ static esp_err_t rssi_device_post_handler(httpd_req_t *req){
 
     cJSON *root = cJSON_Parse(buf);
     rssi = cJSON_GetObjectItem(root, "rssi")->valueint;
-    httpd_resp_sendstr(req, "Code was successfully changed");
+    httpd_resp_sendstr(req, "Rssi value was successfully changed");
     cJSON_Delete(root);
     return ESP_OK;
 }

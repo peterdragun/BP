@@ -11,6 +11,8 @@ char expected_code[19] = "123456"; //Default alarm code
 int wrong_attempts = 0;
 int *wrong_attempts_ptr = &wrong_attempts;
 
+int not_responding(); // defined in sensors.h
+
 ledc_channel_config_t ledc_channel[LEDC_CH_NUM] = {
     {
         .channel    = LEDC_HS_CH0_CHANNEL,
@@ -178,6 +180,13 @@ void add_char_to_code(char c){
 
 esp_err_t arm_system(){
     ESP_LOGI(SECURITY_SYSTEM, "System activating");
+    if (not_responding() != 0){
+        ESP_LOGW(SECURITY_SYSTEM, "Some of sensors are not responding! System cannot be activated");
+        ledc_set_duty(ledc_channel[1].speed_mode, ledc_channel[1].channel, LEDC_DUTY);
+        ledc_update_duty(ledc_channel[1].speed_mode, ledc_channel[1].channel);
+        xTaskCreate(long_beep, "long_beep", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+        return ESP_FAIL;
+    }
     if (*security_state != Disarmed && *security_state != Setup){
         ESP_LOGW(SECURITY_SYSTEM, "Security system is already activated!");
         return ESP_FAIL;
@@ -201,7 +210,7 @@ void compare_codes(){
             *security_state = Setup;
             ESP_LOGI(SECURITY_SYSTEM, "System in setup");
             xTaskCreate(long_beep, "long_beep", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
-        }else{
+        }else if (*security_state != Setup){
             if(*security_state == Activating){
                 vTaskDelete(xHandle_activate);
                 xTaskCreate(stop_alarm_task, "stop_alarm", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);

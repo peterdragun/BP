@@ -1207,6 +1207,9 @@ void app_main(){
     if(wifi_credentials_loaded){
         ESP_ERROR_CHECK(wifi_connect());
         ESP_ERROR_CHECK(start_rest_server());
+    }else{
+        // if this is first boot switch to setup mode
+        *security_state = Setup;
     }
 
     // init BLE
@@ -1345,19 +1348,21 @@ void app_main(){
     }
     ledc_fade_func_install(0);
 
-    xTaskCreate(increment_sensor_beeps_task, "increment_beeps", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_increment_beeps);
+    xTaskCreate(increment_sensor_task, "increment_sensors", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_increment);
 
     //init SNTP for alarm logging
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
-    sntp_init();
-    ESP_LOGI(TAG, "Waiting for system time to be set... ");
-    int retry = 0;
-    const int retry_count = 10;
-    while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
-        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    if(wifi_credentials_loaded){
+        sntp_setoperatingmode(SNTP_OPMODE_POLL);
+        sntp_setservername(0, "pool.ntp.org");
+        sntp_init();
+        ESP_LOGI(TAG, "Waiting for system time to be set... ");
+        int retry = 0;
+        const int retry_count = 10;
+        while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
+            ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
+        }
     }
-
+    xTaskCreate(long_beep, "long_beep", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
     ESP_LOGI("app-main", "inicialization end");
 }

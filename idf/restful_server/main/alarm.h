@@ -60,5 +60,6 @@ void compare_codes();
 
 void hadle_keypad_task();
 
+void long_beep();
 
 #endif
