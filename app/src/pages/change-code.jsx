@@ -18,8 +18,8 @@ export default class extends React.Component {
     super(props);
 
     this.state = {
-      succPopupOpened: false,
-      errorPopupOpened: false,
+      popupOpened: false,
+      popupTitle: "",
       code: "",
       new_code: "",
       message: "",
@@ -29,49 +29,35 @@ export default class extends React.Component {
     return (
       <Page>
         <Navbar title="Alarm Code" backLink="Back"/>
-        <Block>
-          <List>
-            <ListInput
-              type="number"
-              label="Current code"
-              required
-              info="Default code is 123456"
-              min="0"
-              max="9223372036854775807" // 64bit max val
-              placeholder="123456"
-              value={this.state.code}
-              onChange={(event) => this.setState({code: event.target.value})}
-            />
-            <ListInput
-              type="number"
-              label="New code"
-              required
-              min="0"
-              max="9223372036854775807" // 64bit max val
-              placeholder="1234"
-              value={this.state.new_code}
-              onChange={(event) => this.setState({new_code: event.target.value})}
-            />
-            <ListItem>
-              <Button fill onClick={() => this.handleClick()}>Change</Button>
-            </ListItem>
-          </List>
-        </Block>
-        <Popup opened={this.state.succPopupOpened} onPopupClosed={() => this.setState({succPopupOpened : false})}>
+        <List>
+          <ListInput
+            type="number"
+            label="Current code"
+            required
+            info="Default code is 123456"
+            min="0"
+            max="9223372036854775807" // 64bit max val
+            placeholder="123456"
+            value={this.state.code}
+            onChange={(event) => this.setState({code: event.target.value})}
+          />
+          <ListInput
+            type="number"
+            label="New code"
+            required
+            min="0"
+            max="9223372036854775807" // 64bit max val
+            placeholder="1234"
+            value={this.state.new_code}
+            onChange={(event) => this.setState({new_code: event.target.value})}
+          />
+          <ListItem>
+            <Button fill onClick={() => this.handleClick()}>Change</Button>
+          </ListItem>
+        </List>
+        <Popup opened={this.state.popupOpened} onPopupClosed={() => this.setState({popupOpened : false})}>
           <Page>
-            <Navbar title="Success">
-              <NavRight>
-                <Link popupClose>Close</Link>
-              </NavRight>
-            </Navbar>
-            <Block>
-              <p>{this.state.message}</p>
-            </Block>
-          </Page>
-        </Popup>
-        <Popup opened={this.state.errorPopupOpened} onPopupClosed={() => this.setState({errorPopupOpened : false})}>
-          <Page>
-            <Navbar title="Error">
+            <Navbar title={this.state.popupTitle}>
               <NavRight>
                 <Link popupClose>Close</Link>
               </NavRight>
@@ -86,26 +72,25 @@ export default class extends React.Component {
   }
   handleClick () {
     if (typeof localStorage.ip == 'undefined'){
-      this.setState({ errorPopupOpened : true, message: "Please connect click on 'Get IP address' button on Main page" })
+      this.setState({ popupTitle: "Error", popupOpened : true, message: "Please click on 'Find main unit' button on Setup page" })
       return;
     }
     axios({
       method: 'post',
-      // url: 'http://esp-home.local/code/change',
       url: 'http://' + localStorage.ip + '/code/change',
       timeout: 3000,
       data: {
         code: this.state.code,
         new_code: this.state.new_code,
       }
-    }).then(response => {this.setState({ succPopupOpened : true, message: response.data })}, 
+    }).then(response => {this.setState({ popupTitle: "Success", popupOpened : true, message: response.data })}, 
     error => {
       console.log(error);
       var message = "Timeout"
       if (error.response){
         message = error.response.data
       }
-      this.setState({ errorPopupOpened : true, message: message })
+      this.setState({ popupTitle: "Error", popupOpened : true, message: message })
     });
   }
 }
