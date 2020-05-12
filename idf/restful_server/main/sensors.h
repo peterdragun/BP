@@ -22,15 +22,21 @@ extern ledc_channel_config_t ledc_channel[LEDC_CH_NUM];
 extern TaskHandle_t xHandle_alarm;
 extern TaskHandle_t xHandle_search;
 
+typedef enum sensors_type {PIR, Magnetic} sensors_type_t; 
+
 typedef struct{
     uint8_t address[6];
+    sensors_type_t type;
     uint8_t missed_beeps;
     time_t last_connection;
     time_t last_alarm;
 } sensor_t;
 
-esp_err_t compare_uuids(uint8_t *uuid1, uint8_t *uuid2);
+esp_err_t compare_uint8_array(uint8_t *uuid1, uint8_t *uuid2);
 
+/*
+* Checks if address belongs to one of defined senzors and then set alarm.
+*/
 esp_err_t record_sensor(uint8_t *address);
 
 esp_err_t add_new_sensor(uint8_t *address);

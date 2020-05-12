@@ -24,12 +24,17 @@ static RTC_DATA_ATTR struct timeval sleep_enter_time;
 #define GATTC_TAG             "BLE_SENSOR"
 #define INPUT_PIN             32
 #define LED_PIN               19
+#define SLEEP_ARMED           40 // seconds
+#define SLEEP_DISARMED        20 // seconds
+#define ALARM_RETRY           20 // seconds
 
-static uint8_t report_service_uuid[] = {0xae, 0x28, 0x74, 0xca, 0xad, 0xa5, 0x86, 0xac, 0x9b, 0x46, 0x84, 0x39, 0x1e, 0x37, 0x4a, 0x53};
-static uint8_t status_service_uuid[] = {0x89, 0x38, 0xc2, 0xef, 0x89, 0x67, 0x41, 0xaf, 0xae, 0x4d, 0xaa, 0xfe, 0x6d, 0xb3, 0xdb, 0x56};
+#define REPORT_SERVICE_UUID {0xae, 0x28, 0x74, 0xca, 0xad, 0xa5, 0x86, 0xac, 0x9b, 0x46, 0x84, 0x39, 0x1e, 0x37, 0x4a, 0x53}
+#define STATUS_SERVICE_UUID {0x89, 0x38, 0xc2, 0xef, 0x89, 0x67, 0x41, 0xaf, 0xae, 0x4d, 0xaa, 0xfe, 0x6d, 0xb3, 0xdb, 0x56}
+
+static uint8_t report_service_uuid[] = REPORT_SERVICE_UUID;
+static uint8_t status_service_uuid[] = STATUS_SERVICE_UUID;
 
 static esp_gattc_char_elem_t *char_elem_result   = NULL;
-// static esp_gattc_descr_elem_t *descr_elem_result = NULL;
 
 ///Declare static functions
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
@@ -39,12 +44,12 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
 
 static esp_bt_uuid_t remote_filter_report_service_uuid = {
     .len = ESP_UUID_LEN_128,
-    .uuid = {.uuid128 = {0xae, 0x28, 0x74, 0xca, 0xad, 0xa5, 0x86, 0xac, 0x9b, 0x46, 0x84, 0x39, 0x1e, 0x37, 0x4a, 0x53}},
+    .uuid = {.uuid128 = REPORT_SERVICE_UUID},
 };
 
 static esp_bt_uuid_t remote_filter_status_service_uuid = {
     .len = ESP_UUID_LEN_128,
-    .uuid = {.uuid128 = {0x89, 0x38, 0xc2, 0xef, 0x89, 0x67, 0x41, 0xaf, 0xae, 0x4d, 0xaa, 0xfe, 0x6d, 0xb3, 0xdb, 0x56}},
+    .uuid = {.uuid128 = STATUS_SERVICE_UUID},
 };
 
 static bool connect = false;
@@ -54,6 +59,7 @@ static const char remote_device_name[] = "ESP_main_unit";
 RTC_DATA_ATTR uint8_t alarm = 0;
 uint8_t *alarm_ptr = &alarm;
 uint8_t security_state = 0;
+uint8_t write_type = 0;
 uint8_t *security_state_ptr = &security_state;
 
 static esp_ble_scan_params_t ble_scan_params = {
@@ -88,6 +94,28 @@ static struct gattc_profile_inst gl_profile_tab[PROFILE_NUM] = {
         .gattc_if = ESP_GATT_IF_NONE,       /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
     },
 };
+
+void deep_sleep(){
+    int wakeup_time_sec = SLEEP_ARMED;
+    if (*alarm_ptr != 0){
+        wakeup_time_sec = ALARM_RETRY;
+    }else if(*security_state_ptr == 0){ // in disarmed mode
+        wakeup_time_sec = SLEEP_DISARMED;
+    }
+    printf("Enabling timer wakeup, %ds\n", wakeup_time_sec);
+    esp_sleep_enable_timer_wakeup(wakeup_time_sec * 1000000);
+
+    const int ext_wakeup_pin = INPUT_PIN;
+    const uint64_t ext_wakeup_pin_mask = 1ULL << ext_wakeup_pin;
+
+    printf("Enabling EXT1 wakeup on pins GPIO%d\n", ext_wakeup_pin);
+    esp_sleep_enable_ext1_wakeup(ext_wakeup_pin_mask, WAKE_UP);
+
+    gettimeofday(&sleep_enter_time, NULL);
+
+    ESP_LOGI(GATTC_TAG, "Entering deep sleep...");
+    esp_deep_sleep_start();
+}
 
 static const char *esp_key_type_to_str(esp_ble_key_type_t key_type)
 {
@@ -265,20 +293,28 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
 
                         for (int i = 0; i < count; ++i)
                         {
-                            if (char_elem_result[i].uuid.len == ESP_UUID_LEN_128 && compare_uuids(char_elem_result[i].uuid.uuid.uuid128, report_service_uuid) == ESP_OK && (char_elem_result[i].properties & ESP_GATT_CHAR_PROP_BIT_WRITE))
-                            {
+                            if (char_elem_result[i].uuid.len == ESP_UUID_LEN_128 && compare_uuids(char_elem_result[i].uuid.uuid.uuid128, report_service_uuid) == ESP_OK && (char_elem_result[i].properties & ESP_GATT_CHAR_PROP_BIT_WRITE)){
                                 gl_profile_tab[PROFILE_A_APP_ID].char_handle = char_elem_result[i].char_handle;
+                                uint8_t write_val = *alarm_ptr;
+                                if (write_type){ // unknown sensor
+                                    #ifdef DOOR_SENSOR
+                                    write_val = 1;
+                                    #else // PIR
+                                    write_val = 0;
+                                    #endif
+                                }
                                 ret_status = esp_ble_gattc_write_char(gattc_if,
-                                                         gl_profile_tab[PROFILE_A_APP_ID].conn_id,
-                                                         char_elem_result[i].char_handle,
-                                                         sizeof(*alarm_ptr),
-                                                         alarm_ptr,
-                                                         ESP_GATT_WRITE_TYPE_NO_RSP,
-                                                         ESP_GATT_AUTH_REQ_NONE);
+                                                        gl_profile_tab[PROFILE_A_APP_ID].conn_id,
+                                                        char_elem_result[i].char_handle,
+                                                        sizeof(uint8_t),
+                                                        &write_val,
+                                                        ESP_GATT_WRITE_TYPE_NO_RSP,
+                                                        ESP_GATT_AUTH_REQ_NONE);
                                 if (ret_status == ESP_OK){
                                     gpio_set_level(LED_PIN, 0);
                                     *alarm_ptr = 0;
                                 }
+                                deep_sleep();
                                 break;
                             }else if(char_elem_result[i].uuid.len == ESP_UUID_LEN_128 && compare_uuids(char_elem_result[i].uuid.uuid.uuid128, status_service_uuid) == ESP_OK && (char_elem_result[i].properties & ESP_GATT_CHAR_PROP_BIT_READ)){
                                 gl_profile_tab[PROFILE_A_APP_ID].char_handle = char_elem_result[0].char_handle;
@@ -300,10 +336,14 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
         if(p_data->read.value_len == 1){
             ESP_LOGI(GATTC_TAG, "Security state: %d", p_data->read.value[0]);
             *security_state_ptr = p_data->read.value[0];
-            if(*security_state_ptr == 3 || *security_state_ptr == 4){ // write just on Armed and Alarm state
+            if(*security_state_ptr >= 1){ // device is armed
                 esp_ble_gattc_search_service(gattc_if, param->cfg_mtu.conn_id, &remote_filter_report_service_uuid);
+                if (*security_state_ptr == 2){ // sensor was not recognized by main unit
+                    write_type = 1;
+                }
             }else{
                 *alarm_ptr = 0;
+                deep_sleep();
             }
         }else{
             ESP_LOGE(GATTC_TAG, "Unexpected value length");
@@ -616,24 +656,6 @@ void app_main(void)
     esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key, sizeof(uint8_t));
     esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &rsp_key, sizeof(uint8_t));
 
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
-
-    int wakeup_time_sec = 20;
-    if((*security_state_ptr < 2) && alarm == 0){ // in disarmed and setup mode
-        wakeup_time_sec = 40;
-    }
-    printf("Enabling timer wakeup, %ds\n", wakeup_time_sec);
-    esp_sleep_enable_timer_wakeup(wakeup_time_sec * 1000000);
-
-    const int ext_wakeup_pin = INPUT_PIN;
-    const uint64_t ext_wakeup_pin_mask = 1ULL << ext_wakeup_pin;
-
-    if((*security_state_ptr > 1) || alarm == 1){ // activating+ will enable gpio wakeup
-        printf("Enabling EXT1 wakeup on pins GPIO%d\n", ext_wakeup_pin);
-        esp_sleep_enable_ext1_wakeup(ext_wakeup_pin_mask, WAKE_UP);
-    }
-
-
 #if CONFIG_IDF_TARGET_ESP32
     // Isolate GPIO12 pin from external circuits. This is needed for modules
     // which have an external pull-up resistor on GPIO12 (such as ESP32-WROVER)
@@ -641,9 +663,4 @@ void app_main(void)
     rtc_gpio_isolate(GPIO_NUM_12);
 #endif
 
-    gettimeofday(&sleep_enter_time, NULL);
-
-    ESP_LOGI(GATTC_TAG, "Entering deep sleep...");
-    esp_deep_sleep_start();
 }
-

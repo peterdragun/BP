@@ -65,6 +65,7 @@ extern uint8_t new_address[6];
 extern esp_ip4_addr_t s_ip_addr;
 extern sensor_t sensors[MAX_NUMBER_OF_SENSORS];
 extern uint8_t number_of_sensors;
+extern uint8_t unknown_sensor_type;
 extern const char sensors_nvs_key[5][3];
 extern time_t last_alarm;
 

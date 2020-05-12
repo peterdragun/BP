@@ -59,7 +59,7 @@ static esp_err_t list_device_get_handler(httpd_req_t *req){
             if ((i - new_i) == number_of_sensors){
                 break;
             }
-            if (compare_uuids(sensors[j].address, list[i].bd_addr)==ESP_FAIL){
+            if (compare_uint8_array(sensors[j].address, list[i].bd_addr)==ESP_FAIL){
                 not_sensor = 0;
             }
         }
@@ -193,10 +193,40 @@ static esp_err_t rssi_device_post_handler(httpd_req_t *req){
     buf[total_len] = '\0';
 
     cJSON *root = cJSON_Parse(buf);
-    rssi = cJSON_GetObjectItem(root, "rssi")->valueint;
-    httpd_resp_sendstr(req, "Rssi value was successfully changed");
+    int new_rssi = cJSON_GetObjectItem(root, "rssi")->valueint;
+
+    if(new_rssi > -30 || new_rssi < -90){
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "RSSI must be integer in range from -90 to -30");
+        cJSON_Delete(root);
+        return ESP_FAIL;
+    }
+    
+    // store rssi to non-volatile memory
+    nvs_handle_t nvs_handle;
+    esp_err_t ret = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+    if (ret != ESP_OK) {
+        cJSON_Delete(root);
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(ret));
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Error while opening nvs.");
+        return ESP_FAIL;
+    } else {
+        ESP_LOGI(REST_TAG, "Writing rssi to NVS memory... ");
+        ret = nvs_set_i8(nvs_handle, "rssi", rssi);
+        if(ret == ESP_OK){
+            ret = nvs_commit(nvs_handle);
+            rssi = new_rssi;
+        }
+        nvs_close(nvs_handle);
+        ESP_LOGI(REST_TAG, "Done");
+    }
+
     cJSON_Delete(root);
-    return ESP_OK;
+    if(ret != ESP_OK){
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Error while writing to nvs.");
+    }else{
+        httpd_resp_sendstr(req, "Rssi value was successfully changed");
+    }
+    return ret;
 }
 
 static esp_err_t change_code_post_handler(httpd_req_t *req){
@@ -246,7 +276,7 @@ static esp_err_t change_code_post_handler(httpd_req_t *req){
         return ESP_FAIL;
     }
 
-    // store code do non-volatile memory
+    // store code to non-volatile memory
     nvs_handle_t nvs_handle;
     esp_err_t ret = nvs_open("storage", NVS_READWRITE, &nvs_handle);
     if (ret != ESP_OK) {
@@ -310,6 +340,7 @@ static esp_err_t sensors_list_get_handler(httpd_req_t *req){
         sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", a[0], a[1], a[2], a[3], a[4], a[5]);
         json_obj = cJSON_CreateObject();
         cJSON_AddStringToObject(json_obj, "address", (const char*)address);
+        cJSON_AddNumberToObject(json_obj, "type", sensors[i].type);
         cJSON_AddNumberToObject(json_obj, "last_alarm", sensors[i].last_alarm);
         cJSON_AddNumberToObject(json_obj, "last_connection", sensors[i].last_connection);
         cJSON_AddItemToArray(json_list, json_obj);
@@ -318,6 +349,7 @@ static esp_err_t sensors_list_get_handler(httpd_req_t *req){
     sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", unknown_sensor[0], unknown_sensor[1], unknown_sensor[2], unknown_sensor[3], unknown_sensor[4], unknown_sensor[5]);
     if(strcmp("00:00:00:00:00:00", address)){
         cJSON_AddStringToObject(root_json_obj, "unknown", (const char*)address);
+        cJSON_AddNumberToObject(root_json_obj, "unknown_type", unknown_sensor_type);
     }
 
     const char *sensors_list = cJSON_Print(root_json_obj);

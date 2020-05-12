@@ -3,7 +3,7 @@
 char wifi_ssid[32];
 char wifi_pass[64];
 
-int rssi = -50;
+int8_t rssi = -50; // default value
 
 scan_enum_t scan_type = Just_scan;
 scan_enum_t *scan_type_ptr = &scan_type;
@@ -537,7 +537,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     break;
                 }
                 case Add_new:
-                    if (compare_uuids(new_address, scan_result->scan_rst.bda) == ESP_OK){
+                    if (compare_uint8_array(new_address, scan_result->scan_rst.bda) == ESP_OK){
                         esp_ble_gap_stop_scanning();
                         if (connect == false) {
                             connect = true;
@@ -556,7 +556,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                         if(scan_result->scan_rst.rssi > rssi){
                             esp_ble_get_bond_device_list(&bond_cnt, list);
                             for(int i = 0; i < bond_cnt; i++){
-                                if (compare_uuids(list[i].bd_addr, scan_result->scan_rst.bda) == ESP_OK){
+                                if (compare_uint8_array(list[i].bd_addr, scan_result->scan_rst.bda) == ESP_OK){
                                     esp_ble_gap_stop_scanning();
                                     if (connect == false) {
                                         connect = true;
@@ -822,17 +822,21 @@ static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_g
         ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, conn_id %d, trans_id %d, handle %d\n", param->write.conn_id, param->write.trans_id, param->write.handle);
         if (!param->write.is_prep) {
             ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
-            if (*security_state == Armed && *(param->write.value) > 0){
-                if (record_alarm(param->write.bda)==ESP_OK){
-                    *security_state = Alarm;
-                    vTaskDelete(xHandle_search);
-                    xTaskCreate(alarm_task, "alarm_task", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_alarm);
-                    ESP_LOGI(BLE_SECURITY_SYSTEM, "Alarm triggered by sensor");
+            esp_log_buffer_hex(BLE_SECURITY_SYSTEM, param->write.value, param->write.len);
+            if (compare_uint8_array(param->write.bda, unknown_sensor)){
+                unknown_sensor_type = *(param->write.value);
+            }else{
+                if (*security_state == Armed && *(param->write.value) > 0){
+                    if (record_alarm(param->write.bda)==ESP_OK){
+                        *security_state = Alarm;
+                        vTaskDelete(xHandle_search);
+                        xTaskCreate(alarm_task, "alarm_task", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_alarm);
+                        ESP_LOGI(BLE_SECURITY_SYSTEM, "Alarm triggered by sensor");
+                    }
                 }
             }
-            esp_log_buffer_hex(BLE_SECURITY_SYSTEM, param->write.value, param->write.len);
         }
-        example_write_event_env(gatts_if, &b_prepare_write_env, param);
+        // example_write_event_env(gatts_if, &b_prepare_write_env, param);
         break;
     }
     case ESP_GATTS_EXEC_WRITE_EVT:
@@ -998,11 +1002,15 @@ static void gatts_profile_status_event_handler(esp_gatts_cb_event_t event, esp_g
         memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
         rsp.attr_value.handle = param->read.handle;
         rsp.attr_value.len = 1;
-        // check for known mac addresses in sensors and the decrement value for last connection
+        // check for known mac addresses in sensors and decrement value for last connection
         if (record_sensor(param->read.bda) == 0){
-            rsp.attr_value.value[0] = *security_state;
+            if (*security_state < Activating){
+                rsp.attr_value.value[0] = 0;
+            }else{
+                rsp.attr_value.value[0] = 1;
+            }
         }else{
-            rsp.attr_value.value[0] = 5;
+            rsp.attr_value.value[0] = 2;
         }
         esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_OK, &rsp);
         break;
@@ -1163,6 +1171,19 @@ void app_main(){
             default :
                 printf("Error (%s) reading!\n", esp_err_to_name(ret));
         }
+        printf("Reading RSSI value from NVS ... ");
+        ret = nvs_get_i8(nvs_handle, "rssi", &rssi);
+        switch (ret) {
+            case ESP_OK:
+                printf("Done\n");
+                break;
+            case ESP_ERR_NVS_NOT_FOUND:
+                number_of_sensors = 0;
+                printf("RSSI is not initialized yet!\n");
+                break;
+            default :
+                printf("Error (%s) reading!\n", esp_err_to_name(ret));
+        }
         printf("Reading sensors addresses from NVS ... ");
         ret = nvs_get_u8(nvs_handle, "sensors_cnt", &number_of_sensors);
         switch (ret) {
@@ -1186,6 +1207,8 @@ void app_main(){
                         number = number >> 8;
                         sensors[i].address[j] = number & 255;
                     }
+                    number = number >> 8;
+                    sensors[i].type = number & 255;
                     printf("%s Done\n", sensors_nvs_key[i]);
                     break;
                 case ESP_ERR_NVS_NOT_FOUND:
