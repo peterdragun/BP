@@ -32,17 +32,17 @@ typedef struct{
     time_t last_alarm;
 } sensor_t;
 
-esp_err_t compare_uint8_array(uint8_t *uuid1, uint8_t *uuid2);
+esp_err_t compare_uint8_array(uint8_t *uuid1, uint8_t *uuid2, uint8_t size);
 
-/*
-* Checks if address belongs to one of defined senzors and then set alarm.
-*/
 esp_err_t record_sensor(uint8_t *address);
 
 esp_err_t add_new_sensor(uint8_t *address);
 
 esp_err_t remove_sensor(uint8_t *address);
 
+/*
+* Checks if address belongs to one of defined senzors and then set alarm.
+*/
 esp_err_t record_alarm(uint8_t *address);
 
 int not_responding();
