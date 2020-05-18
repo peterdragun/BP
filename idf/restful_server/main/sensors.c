@@ -7,11 +7,8 @@ uint8_t number_of_sensors = 0;
 TaskHandle_t xHandle_increment;
 const char sensors_nvs_key[5][3] = {"s1\0", "s2\0", "s3\0", "s4\0", "s5\0" };
 
-esp_err_t compare_uint8_array(uint8_t *uuid1, uint8_t *uuid2){
-    if(sizeof(uuid1) != sizeof(uuid2)){
-        return ESP_FAIL;
-    }
-    for (int i = 0; i < sizeof(uuid1); i++){
+esp_err_t compare_uint8_array(uint8_t *uuid1, uint8_t *uuid2, uint8_t size){
+    for (int i = 0; i < size; i++){
         if(uuid1[i] != uuid2[i]){
             return ESP_FAIL;
         }
@@ -21,7 +18,8 @@ esp_err_t compare_uint8_array(uint8_t *uuid1, uint8_t *uuid2){
 
 int find_idx(uint8_t *address){
     for (int i = 0; i < number_of_sensors; i++){
-        if(compare_uint8_array(sensors[i].address, address) == ESP_OK){
+        if(compare_uint8_array(sensors[i].address, address, 6) == ESP_OK){
+            ESP_LOGI(SENSORS_TAG, "Index: %d\n", i);
             return i;
         }
     }

@@ -535,7 +535,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     break;
                 }
                 case Add_new:
-                    if (compare_uint8_array(new_address, scan_result->scan_rst.bda) == ESP_OK){
+                    if (compare_uint8_array(new_address, scan_result->scan_rst.bda, 6) == ESP_OK){
                         esp_ble_gap_stop_scanning();
                         if (connect == false) {
                             connect = true;
@@ -554,7 +554,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                         if(scan_result->scan_rst.rssi > rssi){
                             esp_ble_get_bond_device_list(&bond_cnt, list);
                             for(int i = 0; i < bond_cnt; i++){
-                                if (compare_uint8_array(list[i].bd_addr, scan_result->scan_rst.bda) == ESP_OK){
+                                if (compare_uint8_array(list[i].bd_addr, scan_result->scan_rst.bda, 6) == ESP_OK){
                                     esp_ble_gap_stop_scanning();
                                     if (connect == false) {
                                         connect = true;
@@ -821,7 +821,7 @@ static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_g
             ESP_LOGI(BLE_SECURITY_SYSTEM, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
             esp_log_buffer_hex(BLE_SECURITY_SYSTEM, param->write.value, param->write.len);
             esp_log_buffer_hex(BLE_SECURITY_SYSTEM, unknown_sensor, 6);
-            if (compare_uint8_array(param->write.bda, unknown_sensor) == ESP_OK){
+            if (compare_uint8_array(param->write.bda, unknown_sensor, 6) == ESP_OK){
                 unknown_sensor_type = *(param->write.value);
                 ESP_LOGI(BLE_SECURITY_SYSTEM, "Type: %d", unknown_sensor_type);
             }else{
@@ -942,6 +942,7 @@ static void gatts_profile_status_event_handler(esp_gatts_cb_event_t event, esp_g
         rsp.attr_value.handle = param->read.handle;
         rsp.attr_value.len = 1;
         // check for known mac addresses in sensors and decrement value for last connection
+        esp_log_buffer_hex(BLE_SECURITY_SYSTEM, param->read.bda, 6);
         if (record_sensor(param->read.bda) == 0){
             if (*security_state < Activating){
                 rsp.attr_value.value[0] = 0;

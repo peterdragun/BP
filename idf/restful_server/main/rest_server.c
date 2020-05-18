@@ -59,8 +59,9 @@ static esp_err_t list_device_get_handler(httpd_req_t *req){
             if ((i - new_i) == number_of_sensors){
                 break;
             }
-            if (compare_uint8_array(sensors[j].address, list[i].bd_addr)==ESP_FAIL){
+            if (compare_uint8_array(sensors[j].address, list[i].bd_addr, 6)==ESP_FAIL){
                 not_sensor = 0;
+                break;
             }
         }
         if (not_sensor){
@@ -348,8 +349,10 @@ static esp_err_t sensors_list_get_handler(httpd_req_t *req){
     cJSON_AddItemToObject(root_json_obj, "list", json_list);
     sprintf(address, "%02x:%02x:%02x:%02x:%02x:%02x", unknown_sensor[0], unknown_sensor[1], unknown_sensor[2], unknown_sensor[3], unknown_sensor[4], unknown_sensor[5]);
     if(strcmp("00:00:00:00:00:00", address)){
-        cJSON_AddStringToObject(root_json_obj, "unknown", (const char*)address);
-        cJSON_AddNumberToObject(root_json_obj, "unknown_type", unknown_sensor_type);
+        json_obj = cJSON_CreateObject();
+        cJSON_AddStringToObject(json_obj, "address", (const char*)address);
+        cJSON_AddNumberToObject(json_obj, "type", unknown_sensor_type);
+        cJSON_AddItemToObject(root_json_obj, "unknown", json_obj);
     }
 
     const char *sensors_list = cJSON_Print(root_json_obj);
