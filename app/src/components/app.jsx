@@ -10,7 +10,6 @@ import {
   List,
   ListItem,
   Toggle,
-  Button,
 } from 'framework7-react';
 
 import cordovaApp from '../js/cordova-app';
@@ -19,10 +18,10 @@ import routes from '../js/routes';
 export default class extends React.Component {
   constructor() {
     super();
-    var theme = true;
+    var theme = false;
     console.log(localStorage.themeDark)
-    if (localStorage.themeDark == "false") {
-        theme = false;
+    if (localStorage.themeDark == "true") {
+        theme = true;
     }
     console.log(theme)
     this.state = {

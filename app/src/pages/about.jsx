@@ -11,5 +11,9 @@ export default () => (
       <p>Author: Peter Dragúň</p>
       <p>For more informations feel free to contact me.</p>
     </Block>
+    <BlockTitle>Sources</BlockTitle>
+    <Block strong>
+      Icon source: http://getdrawings.com/#alarm-system-icon-72.png
+    </Block>
   </Page>
 );

@@ -92,7 +92,7 @@ export default class extends React.Component {
       timeout: 8000
     }).then(response => {
       console.log(response);
-      scan = {result: response.data};
+      scan = {result: this.removeDuplicates(response.data)};
       this.setState({scan});
       done();
     }, error => {
@@ -104,5 +104,21 @@ export default class extends React.Component {
       this.setState({ popupTitle: "Success", popupOpened : true, message: message })
       done();
     });
+  }
+  removeDuplicates(array){
+    var trimmedArray = [];
+    var values = [];
+    var value;
+
+    for(var i = 0; i < array.length; i++) {
+      value = array[i]["address"];
+      if(values.indexOf(value) === -1) {
+        trimmedArray.push(array[i]);
+        values.push(value);
+      }else if (array[i]["name"]){
+        trimmedArray[values.indexOf(value)]["name"] = array[i]["name"];
+      }
+    }
+    return trimmedArray;
   }
 }

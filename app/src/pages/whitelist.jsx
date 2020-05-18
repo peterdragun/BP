@@ -14,6 +14,7 @@ import {
   ListItem,
   BlockTitle,
   ListInput,
+  CardContent,
 } from 'framework7-react';
 import axios from 'axios'
 
@@ -23,6 +24,7 @@ export default class extends React.Component {
 
     this.state = {
       list: props.f7route.context.list,
+      distance: props.f7route.context.distance,
       popupOpened: props.f7route.context.errorPopup,
       message: props.f7route.context.message,
       popupTitle: "Error",
@@ -36,16 +38,15 @@ export default class extends React.Component {
         <Navbar title="Whitelist" backLink="Back" />
         <List>
           <ListInput
-            label="RSSI"
+            label="Detection distance:"
             type="number"
-            min="-90"
-            max="-30"
             placeholder="N/A"
-            value={list.rssi}
-            onChange={(event) => this.setState({rssi: event.target.value})}
+            info="Decimal number in meters"
+            value={this.state.distance}
+            onChange={(event) => this.setState({distance: event.target.value})}
           />
           <ListItem>
-            <Button fill onClick={() => this.handleClick(this.state.rssi, "RSSI")} text="Change"/>
+            <Button fill onClick={() => this.handleClick(this.state.distance, "RSSI")} text="Change"/>
           </ListItem>
         </List>
         <BlockTitle>Devices</BlockTitle>
@@ -53,6 +54,9 @@ export default class extends React.Component {
           {list.result.map((device, index) => (
             <Card key={index}>
               <CardHeader>{`Address: ${device.address}`}</CardHeader>
+              {/* <CardContent>
+                {`Last connection: ${device.last_connection  == 0 ? "N/A" : new Date(device.last_connection*1000).toLocaleString()}`}
+              </CardContent> */}
               <CardFooter>
                 <Link></Link>
                 <Button fill raised color="red" onClick={() => this.handleClick(device.address.replace(/:/g,'', "remove"))}>Remove</Button>
@@ -85,7 +89,7 @@ export default class extends React.Component {
     if(type == "RSSI"){
       url = url + '/ble/device/rssi'
       data = {
-        rssi: value,
+        distance: value,
       }
     }else{
       url = url + '/ble/device/remove'

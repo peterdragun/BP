@@ -15,6 +15,7 @@ import {
   NavRight,
 } from 'framework7-react';
 import axios from 'axios'
+import TimeAgo from 'react-timeago'
 
 export default class Home extends React.Component {
   constructor(props) {
@@ -31,6 +32,12 @@ export default class Home extends React.Component {
       refresh: false,
       lastRefresh: "N/A",
     }
+  }
+  componentDidMount(){
+    this.loadStatus();
+    setInterval(() => {
+      this.loadStatus();
+    }, 30000);
   }
   render() {
     return (
@@ -50,8 +57,8 @@ export default class Home extends React.Component {
           <ListItem header="Last alarm" title={this.state.alarm}/>
           <ListItem header="IP address" title={localStorage.ip}/>
           <ListItem>
-            <Button disabled={this.state.refresh} fill onClick={() => this.loadStatus()}>Refresh</Button>
-            <p>{`Last refresh ${this.state.lastRefresh}`}</p>
+            <p>Last refresh:</p>
+            <TimeAgo date={this.state.lastRefresh}/>
           </ListItem>
         </List>
 
@@ -107,7 +114,7 @@ export default class Home extends React.Component {
         alarm = new Date(response.alarm*1000).toLocaleString();
       }
       this.setState({status: response.status, alarm: alarm, sensors: response.sensors, notResponding: response.notResponding,
-        refresh: false, lastRefresh: new Date().toLocaleString()})
+        refresh: false, lastRefresh: new Date()})
     },
     error => {
       console.error(error);
@@ -115,7 +122,7 @@ export default class Home extends React.Component {
       if (error.response){
         message = error.response.data
       }
-      this.setState({ popupTitle: "Error", popupOpened : true, message: message })
+      this.setState({ popupTitle: "Error", popupOpened : true, message: message, refresh: false })
     });
   }
   handleClick () {
@@ -127,7 +134,7 @@ export default class Home extends React.Component {
       method: 'get',
       url: 'http://' + localStorage.ip + '/system/arm',
       timeout: 3000
-    }).then(response => {this.setState({ popupTitle: "Success", popupOpened : true, message: response.data })}, 
+    }).then(response => {this.setState({ popupTitle: "Success", popupOpened : true, message: response.data }); this.loadStatus();},
     error => {
       console.error(error);
       var message = "Timeout"

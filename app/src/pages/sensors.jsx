@@ -12,6 +12,7 @@ import {
   Popup,
   NavRight,
   Block,
+  BlockTitle,
 } from 'framework7-react';
 import axios from 'axios'
 
@@ -33,14 +34,19 @@ export default class extends React.Component {
     var newSensor = ""
     if (unknown) {
       newSensor = (
-        <Card>
+        <List>
           <BlockTitle>New sensor</BlockTitle>
-          <CardHeader>{`Address: ${this.state.unknown}`}</CardHeader>
-          <CardFooter>
-            <Link></Link>
-            <Button fill raised onClick={() => this.handleClickAdd(unknown.replace(/:/g,''))}>Add</Button>
-          </CardFooter>
-        </Card>
+          <Card>
+            <CardHeader>{`Address: ${this.state.unknown.address}`}</CardHeader>
+            <CardContent>
+              <p>{`Type: ${this.state.unknown.type == 0 ? "PIR" : "Magnetic sensor"}`}</p>
+            </CardContent>
+            <CardFooter>
+              <Link></Link>
+              <Button fill raised onClick={() => this.handleClickAdd(unknown.address.replace(/:/g,''))}>Add</Button>
+            </CardFooter>
+          </Card>
+        </List>
       )
     }
     return (
@@ -51,6 +57,7 @@ export default class extends React.Component {
             <Card key={index}>
               <CardHeader>{`Address: ${device.address}`}</CardHeader>
               <CardContent>
+                <p>{`Type: ${device.type == 0 ? "PIR" : "Magnetic sensor"}`}</p>
                 <p>{`Last alarm: ${device.last_alarm == 0 ? "N/A" : new Date(device.last_alarm*1000).toLocaleString()}`}</p>
                 <p>{`Last connection: ${device.last_connection  == 0 ? "N/A" : new Date(device.last_connection*1000).toLocaleString()}`}</p>
               </CardContent>
