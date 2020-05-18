@@ -1,6 +1,5 @@
 #include "wifi_connect.h"
 
-#ifdef CONFIG_EXAMPLE_CONNECT_IPV6
 static esp_ip6_addr_t s_ipv6_addr;
 
 /* types of ipv6 addresses to be displayed on ipv6 events */
@@ -12,7 +11,6 @@ static const char *s_ipv6_addr_types[] = {
     "ESP_IP6_ADDR_IS_UNIQUE_LOCAL",
     "ESP_IP6_ADDR_IS_IPV4_MAPPED_IPV6"
     };
-#endif
 
 static EventGroupHandle_t s_connect_event_group;
 static esp_netif_t *s_example_esp_netif = NULL;
@@ -53,8 +51,6 @@ static void on_got_ip(void *arg, esp_event_base_t event_base,
     xEventGroupSetBits(s_connect_event_group, GOT_IPV4_BIT);
 }
 
-#ifdef CONFIG_EXAMPLE_CONNECT_IPV6
-
 static void on_got_ipv6(void *arg, esp_event_base_t event_base,
                         int32_t event_id, void *event_data)
 {
@@ -70,8 +66,6 @@ static void on_got_ipv6(void *arg, esp_event_base_t event_base,
         xEventGroupSetBits(s_connect_event_group, GOT_IPV6_BIT);
     }
 }
-
-#endif // CONFIG_EXAMPLE_CONNECT_IPV6
 
 static void start(void)
 {
@@ -91,10 +85,8 @@ static void start(void)
 
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &on_wifi_disconnect, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_got_ip, NULL));
-#ifdef CONFIG_EXAMPLE_CONNECT_IPV6
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_CONNECTED, &on_wifi_connect, netif));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_GOT_IP6, &on_got_ipv6, NULL));
-#endif
 
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
     wifi_config_t wifi_config = {
@@ -117,10 +109,8 @@ static void stop(void)
 {
     ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &on_wifi_disconnect));
     ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_got_ip));
-#ifdef CONFIG_EXAMPLE_CONNECT_IPV6
     ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_GOT_IP6, &on_got_ipv6));
     ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, WIFI_EVENT_STA_CONNECTED, &on_wifi_connect));
-#endif
     esp_err_t err = esp_wifi_stop();
     if (err == ESP_ERR_WIFI_NOT_INIT) {
         return;
@@ -145,8 +135,6 @@ esp_err_t wifi_connect(void)
     xEventGroupWaitBits(s_connect_event_group, CONNECTED_BITS, true, true, 1000);
     ESP_LOGI(TAG, "Connected to %s", s_connection_name);
     ESP_LOGI(TAG, "IPv4 address: " IPSTR, IP2STR(&s_ip_addr));
-#ifdef CONFIG_EXAMPLE_CONNECT_IPV6
     ESP_LOGI(TAG, "IPv6 address: " IPV6STR, IPV62STR(s_ipv6_addr));
-#endif
     return ESP_OK;
 }

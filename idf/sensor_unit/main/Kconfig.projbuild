@@ -1,9 +1,5 @@
 menu "Sensor configuration"
 
-    config EXAMPLE_DUMP_ADV_DATA_AND_SCAN_RESP
-        bool "Dump whole adv data and scan response data in example"
-        default n
-
     choice
         prompt "Select type of sensor"
     config DOOR_SENSOR

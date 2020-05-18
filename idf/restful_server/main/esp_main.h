@@ -1,3 +1,10 @@
+/**
+* @file  esp_main.h
+*
+* @brief BLE
+* @author Peter Dragun (xdragu01)
+*/
+
 #ifndef ESP_MAIN_H
 #define ESP_MAIN_H
 
@@ -55,6 +62,7 @@
 
 #define NUMBER_OF_UUIDS             3
 
+// global variables
 extern ledc_channel_config_t ledc_channel[LEDC_CH_NUM];
 extern char expected_code[19];
 extern state_enum_t *security_state;
@@ -69,11 +77,17 @@ extern uint8_t unknown_sensor_type;
 extern const char sensors_nvs_key[5][3];
 extern time_t last_alarm;
 
+/**
+ * @brief 
+ */
 typedef struct {
     uint8_t *prepare_buf;
     int prepare_len;
 } prepare_type_env_t;
 
+/**
+ * @brief Instance of server profile
+ */
 struct gatts_profile_inst {
     esp_gatts_cb_t gatts_cb;
     uint16_t gatts_if;
@@ -89,6 +103,9 @@ struct gatts_profile_inst {
     esp_bt_uuid_t descr_uuid;
 };
 
+/**
+ * @brief Instance of client profile
+ */
 struct gattc_profile_inst {
     esp_gattc_cb_t gattc_cb;
     uint16_t gattc_if;
@@ -100,6 +117,9 @@ struct gattc_profile_inst {
     esp_bd_addr_t remote_bda;
 };
 
+/**
+ * @brief Load configuration from NVS, initialize BLE structures, sync time
+ */
 void app_main();
 
-#endif
+#endif //ESP_MAIN_H

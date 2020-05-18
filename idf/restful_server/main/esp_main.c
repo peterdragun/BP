@@ -1,3 +1,7 @@
+/*
+Code was partialy inspired by examples from ESP-IDF available from: https://github.com/espressif/esp-idf/tree/master/examples
+*/
+
 #include "esp_main.h"
 
 char wifi_ssid[32];
@@ -9,7 +13,7 @@ scan_enum_t scan_type = Just_scan;
 scan_enum_t *scan_type_ptr = &scan_type;
 
 static esp_gattc_char_elem_t *char_elem_result   = NULL;
-static esp_gattc_descr_elem_t *descr_elem_result = NULL;
+// static esp_gattc_descr_elem_t *descr_elem_result = NULL;
 
 ///Declare functions
 static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param);
@@ -102,22 +106,21 @@ static esp_ble_adv_params_t adv_params = {
     .adv_type           = ADV_TYPE_IND,
     .own_addr_type      = BLE_ADDR_TYPE_PUBLIC,
     .channel_map        = ADV_CHNL_ALL,
-    .adv_filter_policy  = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY, // ADV_FILTER_ALLOW_SCAN_WLST_CON_WLST
+    .adv_filter_policy  = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
 };
 
-/* One gatt-based profile one app_id and one gatts_if, this array will store the gatts_if returned by ESP_GATTS_REG_EVT */
 static struct gatts_profile_inst gatts_profile_tab[GATTS_PROFILE_NUM] = {
     [GATTS_PROFILE_STATUS] = {
         .gatts_cb = gatts_profile_status_event_handler,
-        .gatts_if = ESP_GATT_IF_NONE,       /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
+        .gatts_if = ESP_GATT_IF_NONE,
     },
     [GATTS_PROFILE_SENSOR] = {
         .gatts_cb = gatts_profile_sensor_event_handler,
-        .gatts_if = ESP_GATT_IF_NONE,       /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
+        .gatts_if = ESP_GATT_IF_NONE,
     },
     [GATTS_PROFILE_SETUP] = {
         .gatts_cb = gatts_profile_setup_event_handler,
-        .gatts_if = ESP_GATT_IF_NONE,       /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
+        .gatts_if = ESP_GATT_IF_NONE,
     },
 };
 
@@ -195,14 +198,16 @@ static char *esp_auth_req_to_str(esp_ble_auth_req_t auth_req)
 }
 
 
-static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param)
-{
+static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param){
     esp_ble_gattc_cb_param_t *p_data = (esp_ble_gattc_cb_param_t *)param;
 
     switch (event) {
     case ESP_GATTC_REG_EVT:
         ESP_LOGI(BLE_SECURITY_SYSTEM, "REG_EVT");
         esp_ble_gap_config_local_privacy(true);
+        break;
+    case ESP_GATTC_CONGEST_EVT:
+        ESP_LOGI(BLE_SECURITY_SYSTEM, "ESP_GATTC_CONGEST_EVT\n");
         break;
     case ESP_GATTC_CONNECT_EVT: {
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ESP_GATTC_CONNECT_EVT conn_id %d, if %d\n", p_data->connect.conn_id, gattc_if);
@@ -315,53 +320,53 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
         }
 
         break;
-    case ESP_GATTC_REG_FOR_NOTIFY_EVT: {
-        if (p_data->reg_for_notify.status != ESP_GATT_OK){
-            ESP_LOGE(BLE_SECURITY_SYSTEM, "reg for notify failed, error status = %x", p_data->reg_for_notify.status);
-            break;
-        }
+    // case ESP_GATTC_REG_FOR_NOTIFY_EVT: {
+    //     if (p_data->reg_for_notify.status != ESP_GATT_OK){
+    //         ESP_LOGE(BLE_SECURITY_SYSTEM, "reg for notify failed, error status = %x", p_data->reg_for_notify.status);
+    //         break;
+    //     }
 
-            uint16_t count = 0;
-            uint16_t offset = 0;
-            uint16_t notify_en = 1;
-            esp_gatt_status_t ret_status = esp_ble_gattc_get_attr_count(gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id, ESP_GATT_DB_DESCRIPTOR,
-                                                                        gl_profile_tab[PROFILE_A_APP_ID].service_start_handle,
-                                                                        gl_profile_tab[PROFILE_A_APP_ID].service_end_handle,
-                                                                        p_data->reg_for_notify.handle, &count);
-            if (ret_status != ESP_GATT_OK){
-                ESP_LOGE(BLE_SECURITY_SYSTEM, "esp_ble_gattc_get_attr_count error, %d", __LINE__);
-            }
-            if (count > 0){
-                descr_elem_result = malloc(sizeof(esp_gattc_descr_elem_t) * count);
-                if (!descr_elem_result){
-                    ESP_LOGE(BLE_SECURITY_SYSTEM, "malloc error, gattc no mem");
-                }else{
-                    ret_status = esp_ble_gattc_get_all_descr(gattc_if,gl_profile_tab[PROFILE_A_APP_ID].conn_id, p_data->reg_for_notify.handle,
-                                                             descr_elem_result, &count, offset);
-                if (ret_status != ESP_GATT_OK){
-                    ESP_LOGE(BLE_SECURITY_SYSTEM, "esp_ble_gattc_get_all_descr error, %d", __LINE__);
-                }
+    //         uint16_t count = 0;
+    //         uint16_t offset = 0;
+    //         uint16_t notify_en = 1;
+    //         esp_gatt_status_t ret_status = esp_ble_gattc_get_attr_count(gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id, ESP_GATT_DB_DESCRIPTOR,
+    //                                                                     gl_profile_tab[PROFILE_A_APP_ID].service_start_handle,
+    //                                                                     gl_profile_tab[PROFILE_A_APP_ID].service_end_handle,
+    //                                                                     p_data->reg_for_notify.handle, &count);
+    //         if (ret_status != ESP_GATT_OK){
+    //             ESP_LOGE(BLE_SECURITY_SYSTEM, "esp_ble_gattc_get_attr_count error, %d", __LINE__);
+    //         }
+    //         if (count > 0){
+    //             descr_elem_result = malloc(sizeof(esp_gattc_descr_elem_t) * count);
+    //             if (!descr_elem_result){
+    //                 ESP_LOGE(BLE_SECURITY_SYSTEM, "malloc error, gattc no mem");
+    //             }else{
+    //                 ret_status = esp_ble_gattc_get_all_descr(gattc_if,gl_profile_tab[PROFILE_A_APP_ID].conn_id, p_data->reg_for_notify.handle,
+    //                                                          descr_elem_result, &count, offset);
+    //             if (ret_status != ESP_GATT_OK){
+    //                 ESP_LOGE(BLE_SECURITY_SYSTEM, "esp_ble_gattc_get_all_descr error, %d", __LINE__);
+    //             }
 
-                    for (int i = 0; i < count; ++i)
-                    {
-                        if (descr_elem_result[i].uuid.len == ESP_UUID_LEN_16 && descr_elem_result[i].uuid.uuid.uuid16 == ESP_GATT_UUID_CHAR_CLIENT_CONFIG)
-                        {
-                            esp_ble_gattc_write_char_descr (gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id, descr_elem_result[i].handle,
-                                                            sizeof(notify_en), (uint8_t *)&notify_en, ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
+    //                 for (int i = 0; i < count; ++i)
+    //                 {
+    //                     if (descr_elem_result[i].uuid.len == ESP_UUID_LEN_16 && descr_elem_result[i].uuid.uuid.uuid16 == ESP_GATT_UUID_CHAR_CLIENT_CONFIG)
+    //                     {
+    //                         esp_ble_gattc_write_char_descr (gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id, descr_elem_result[i].handle,
+    //                                                         sizeof(notify_en), (uint8_t *)&notify_en, ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
 
-                            break;
-                        }
-                    }
-                }
-                free(descr_elem_result);
-            }
+    //                         break;
+    //                     }
+    //                 }
+    //             }
+    //             free(descr_elem_result);
+    //         }
 
-        break;
-    }
-    case ESP_GATTC_NOTIFY_EVT:
-        ESP_LOGI(BLE_SECURITY_SYSTEM, "ESP_GATTC_NOTIFY_EVT, receive notify value:");
-        esp_log_buffer_hex(BLE_SECURITY_SYSTEM, p_data->notify.value, p_data->notify.value_len);
-        break;
+    //     break;
+    // }
+    // case ESP_GATTC_NOTIFY_EVT:
+    //     ESP_LOGI(BLE_SECURITY_SYSTEM, "ESP_GATTC_NOTIFY_EVT, receive notify value:");
+    //     esp_log_buffer_hex(BLE_SECURITY_SYSTEM, p_data->notify.value, p_data->notify.value_len);
+    //     break;
     case ESP_GATTC_WRITE_DESCR_EVT:
         if (p_data->write.status != ESP_GATT_OK){
             ESP_LOGE(BLE_SECURITY_SYSTEM, "write descr failed, error status = %x", p_data->write.status);
@@ -457,7 +462,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         break;
     case ESP_GAP_BLE_PASSKEY_REQ_EVT:                           /* passkey request event */
         /* Call the following function to input the passkey which is displayed on the remote device */
-        //esp_ble_passkey_reply(gl_profile_tab[PROFILE_A_APP_ID].remote_bda, true, 0x00);
+        esp_ble_passkey_reply(gl_profile_tab[PROFILE_A_APP_ID].remote_bda, true, 0x00);
         ESP_LOGI(BLE_SECURITY_SYSTEM, "ESP_GAP_BLE_PASSKEY_REQ_EVT");
         break;
     case ESP_GAP_BLE_OOB_REQ_EVT: {
@@ -659,21 +664,7 @@ static void write_wifi_credentials(esp_gatt_if_t gatts_if, prepare_type_env_t *p
         }
 
         esp_restart();
-        // init rest server
-        // ESP_ERROR_CHECK(wifi_connect());
-        // ESP_ERROR_CHECK(start_rest_server());
     }
-    // esp_gatt_rsp_t *gatt_rsp = (esp_gatt_rsp_t *)malloc(sizeof(esp_gatt_rsp_t));
-    // gatt_rsp->attr_value.len = param->write.len;
-    // gatt_rsp->attr_value.handle = param->write.handle;
-    // gatt_rsp->attr_value.offset = param->write.offset;
-    // gatt_rsp->attr_value.auth_req = ESP_GATT_AUTH_REQ_NONE;
-    // memcpy(gatt_rsp->attr_value.value, param->write.value, param->write.len);
-    // esp_err_t response_err = esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, ESP_GATT_OK, gatt_rsp);
-    // if (response_err != ESP_OK) {
-    //     ESP_LOGE(BLE_SECURITY_SYSTEM, "Send response error\n");
-    // }
-    // free(gatt_rsp);
 }
 
 
@@ -772,10 +763,10 @@ static void gatts_profile_setup_event_handler(esp_gatts_cb_event_t event, esp_ga
                  param->connect.conn_id,
                  param->connect.remote_bda[0], param->connect.remote_bda[1], param->connect.remote_bda[2],
                  param->connect.remote_bda[3], param->connect.remote_bda[4], param->connect.remote_bda[5]);
-        gatts_profile_tab[GATTS_PROFILE_SETUP].conn_id = param->connect.conn_id;
         if(*security_state != Setup){
             esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_AUTH_FAIL, NULL);
         }else{
+            gatts_profile_tab[GATTS_PROFILE_SETUP].conn_id = param->connect.conn_id;
             esp_ble_set_encryption(param->connect.remote_bda, ESP_BLE_SEC_ENCRYPT_MITM);
         }
         esp_ble_gap_start_advertising(&adv_params);
@@ -890,7 +881,7 @@ static void gatts_profile_sensor_event_handler(esp_gatts_cb_event_t event, esp_g
                  param->connect.conn_id,
                  param->connect.remote_bda[0], param->connect.remote_bda[1], param->connect.remote_bda[2],
                  param->connect.remote_bda[3], param->connect.remote_bda[4], param->connect.remote_bda[5]);
-                 gatts_profile_tab[GATTS_PROFILE_SENSOR].conn_id = param->connect.conn_id;
+        gatts_profile_tab[GATTS_PROFILE_SENSOR].conn_id = param->connect.conn_id;
         esp_ble_set_encryption(param->connect.remote_bda, ESP_BLE_SEC_ENCRYPT_MITM);
         esp_ble_gap_start_advertising(&adv_params);
         break;
@@ -1177,6 +1168,8 @@ void app_main(){
 
     // init BLE
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
+    // increase TX power to increase range
+    // esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_P9);
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     ret = esp_bt_controller_init(&bt_cfg);
@@ -1298,8 +1291,8 @@ void app_main(){
         .duty_resolution = LEDC_TIMER_13_BIT, // resolution of PWM duty
         .freq_hz = 3000,                      // frequency of PWM signal
         .speed_mode = LEDC_HS_MODE,           // timer mode
-        .timer_num = LEDC_HS_TIMER,            // timer index
-        .clk_cfg = LEDC_AUTO_CLK,              // Auto select the source clock
+        .timer_num = LEDC_HS_TIMER,           // timer index
+        .clk_cfg = LEDC_AUTO_CLK,             // Auto select the source clock
     };
     ledc_timer_config(&ledc_timer);
     ledc_timer.speed_mode = LEDC_HS_MODE;
@@ -1327,5 +1320,5 @@ void app_main(){
         }
     }
     xTaskCreate(long_beep, "long_beep", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
-    ESP_LOGI("app-main", "inicialization end");
+    ESP_LOGI("ESP-MAIN", "inicialization end");
 }

@@ -1,7 +1,15 @@
+/**
+* @file  rest_server.h
+*
+* @brief Api restful server handlers
+* @author Peter Dragun (xdragu01)
+*/
+
 #ifndef REST_SERVER_H
 #define REST_SERVER_H
 
 #include <string.h>
+#include <math.h> //log10
 
 #include "esp_http_server.h"
 #include "esp_log.h"
@@ -17,7 +25,8 @@
 
 #define SCRATCH_BUFSIZE (10240)
 
-#define REST_TAG "esp-rest"
+#define REST_TAG "REST"
+#define SECURITY_SYSTEM "SECURITY_SYSTEM"
 #define REST_CHECK(a, str, goto_tag, ...)                                              \
     do                                                                                 \
     {                                                                                  \
@@ -28,9 +37,10 @@
         }                                                                              \
     } while (0)
 
+#define RSSI_AT_1_METER 9 - 62 // +9dbm is tx
+#define ENV_FACTOR 4
 
-#define SECURITY_SYSTEM "SECURITY_SYSTEM"
-
+// global variables
 extern state_enum_t *security_state;
 extern scan_enum_t *scan_type_ptr;
 extern char expected_code[19];
@@ -41,13 +51,20 @@ extern sensor_t sensors[MAX_NUMBER_OF_SENSORS];
 extern time_t last_alarm;
 extern int8_t rssi;
 
+/**
+ * @brief Context of request
+ */
 typedef struct rest_server_context {
     char scratch[SCRATCH_BUFSIZE];
 } rest_server_context_t;
 
 cJSON *json_resp; // BLE scan results
 
+/**
+ * @brief Initialize structures for REST API server
+ * 
+ * @return On successs return ESP_OK. On error return ESP_FAIL
+ */
 esp_err_t start_rest_server();
 
-
-#endif
+#endif //REST_SERVER_H

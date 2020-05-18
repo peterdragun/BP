@@ -1,3 +1,10 @@
+/**
+* @file  sensors.c
+*
+* @brief Operations with sensors
+* @author Peter Dragun (xdragu01)
+*/
+
 #include "sensors.h"
 
 uint8_t unknown_sensor[6];
@@ -34,7 +41,7 @@ esp_err_t record_sensor(uint8_t *address){
         }
         return ESP_FAIL;
     }
-    if(sensors[idx].missed_beeps >= 3 && not_responding() <= 1){
+    if(sensors[idx].missed_beeps >= 1 && not_responding() <= 1){
         for (int ch = 1; ch < LEDC_CH_NUM; ch++) {
             ledc_set_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel, 0);
             ledc_update_duty(ledc_channel[ch].speed_mode, ledc_channel[ch].channel);
@@ -122,7 +129,7 @@ esp_err_t record_alarm(uint8_t *address){
 int not_responding(){
     int cnt = 0;
     for(int i = 0; i < number_of_sensors; i++){
-        if (sensors[i].missed_beeps > 3){
+        if (sensors[i].missed_beeps > 0){
             cnt++;
         }
     }
@@ -131,11 +138,17 @@ int not_responding(){
 
 void increment_sensor_task(){
     uint8_t wait_time;
+    time_t now;
     while (1) {
+        time(&now);
+        wait_time = DISARMED_WAIT;
+        if(*security_state > Activating){
+            wait_time = ARMED_WAIT;
+        }
         ESP_LOGI("incrementing task", "start");
         for(uint8_t i = 0; i < number_of_sensors; i++){
-            sensors[i].missed_beeps++;
-            if (sensors[i].missed_beeps++ >= 4){
+            if(now - sensors[i].last_connection > wait_time + 2*REPEAT_WAIT){
+                sensors[i].missed_beeps = 1;
                 ESP_LOGE("incrementing task", "senosor is not responding!!!");
                 if(*security_state < Activating){
                     ledc_set_duty(ledc_channel[2].speed_mode, ledc_channel[2].channel, LEDC_DUTY);
@@ -147,10 +160,6 @@ void increment_sensor_task(){
                     xTaskCreate(alarm_task, "alarm_task", 1024*2, NULL, configMAX_PRIORITIES-1, &xHandle_alarm);
                 }
             }
-        }
-        wait_time = 40;
-        if(*security_state > Activating){
-            wait_time = 20;
         }
         vTaskDelay(wait_time*1000 / portTICK_PERIOD_MS);
     }

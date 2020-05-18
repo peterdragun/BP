@@ -1,3 +1,10 @@
+/**
+* @file  wifi_connect.h
+*
+* @brief Handlers wifi connections
+* @author Peter Dragun (xdragu01)
+*/
+
 #ifndef WIFI_CONNECT_H
 #define WIFI_CONNECT_H
 
@@ -13,7 +20,6 @@
 #define GOT_IPV4_BIT BIT(0)
 #define GOT_IPV6_BIT BIT(1)
 
-#ifdef CONFIG_EXAMPLE_CONNECT_IPV6
 #define CONNECTED_BITS (GOT_IPV4_BIT | GOT_IPV6_BIT)
 
 #if defined(CONFIG_EXAMPLE_CONNECT_IPV6_PREF_LOCAL_LINK)
@@ -26,13 +32,15 @@
 #define EXAMPLE_CONNECT_PREFERRED_IPV6_TYPE ESP_IP6_ADDR_IS_UNIQUE_LOCAL
 #endif // if-elif CONFIG_EXAMPLE_CONNECT_IPV6_PREF_...
 
-#else
-#define CONNECTED_BITS (GOT_IPV4_BIT)
-#endif
-
+// global variables
 extern char wifi_ssid[32];
 extern char wifi_pass[64];
 
+/**
+ * @brief Connect to wifi, store IP address
+ * 
+ * @return ESP_OK on successful connection
+ */
 esp_err_t wifi_connect(void);
 
-#endif
+#endif //WIFI_CONNECT_H

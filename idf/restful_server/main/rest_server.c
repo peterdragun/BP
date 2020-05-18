@@ -25,7 +25,7 @@ static esp_err_t ble_scan_get_handler(httpd_req_t *req){
     *scan_type_ptr = Just_scan;
     uint32_t duration = 5; // in seconds
     esp_ble_gap_start_scanning(duration);
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    vTaskDelay(duration * 1000 / portTICK_PERIOD_MS);
     const char *scan = cJSON_Print(json_resp);
     httpd_resp_sendstr(req, scan);
     ESP_LOGI(REST_TAG,"resp: %s", scan);
@@ -57,11 +57,10 @@ static esp_err_t list_device_get_handler(httpd_req_t *req){
         for (int j = 0; j < number_of_sensors; j++){
             // small optimalization if all senzors were removed end cycle
             if ((i - new_i) == number_of_sensors){
-                break;
-            }
-            if (compare_uint8_array(sensors[j].address, list[i].bd_addr, 6)==ESP_FAIL){
-                not_sensor = 0;
-                break;
+                if (compare_uint8_array(sensors[j].address, list[i].bd_addr, 6)==ESP_OK){
+                    not_sensor = 0;
+                    break;
+                }
             }
         }
         if (not_sensor){
@@ -75,7 +74,12 @@ static esp_err_t list_device_get_handler(httpd_req_t *req){
         }
     }
     cJSON_AddItemToObject(root_obj, "list", json_list);
-    cJSON_AddNumberToObject(root_obj, "rssi", rssi);
+    // Distance = 10 ^ ((RSSI_AT_1_METER – RSSI)/(10 * ENV_FACTOR))
+    ESP_LOGI(REST_TAG, "RSSI: %d", rssi);
+    double distance = pow(10, ((RSSI_AT_1_METER - rssi)/(10.0 * ENV_FACTOR)));
+    distance = round(distance*100)/100;
+    ESP_LOGI(REST_TAG, "Distance: %F", distance);
+    cJSON_AddNumberToObject(root_obj, "distance", distance);
     const char *scan = cJSON_Print(root_obj);
     httpd_resp_sendstr(req, scan);
     ESP_LOGI(REST_TAG,"resp: %s", scan);
@@ -194,10 +198,19 @@ static esp_err_t rssi_device_post_handler(httpd_req_t *req){
     buf[total_len] = '\0';
 
     cJSON *root = cJSON_Parse(buf);
-    int new_rssi = cJSON_GetObjectItem(root, "rssi")->valueint;
+    const char *sensors_list = cJSON_Print(root);
+    ESP_LOGI(REST_TAG,"req: %s", sensors_list);
 
-    if(new_rssi > -30 || new_rssi < -90){
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "RSSI must be integer in range from -90 to -30");
+    char * ptr = NULL;
+    double distance = strtod(cJSON_GetObjectItem(root, "distance")->valuestring, &ptr);
+    ESP_LOGI(REST_TAG, "Distance: %F", distance);
+
+    // RSSI = ENV_FACTOR* -10 * log10(distance in meters) + RssiAtOneMeter
+    int new_rssi =  round(ENV_FACTOR * (-10) * log10(distance) + RSSI_AT_1_METER);
+    ESP_LOGI(REST_TAG, "New RSSI: %d", new_rssi);
+    
+    if(new_rssi > -10){
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "RSSI must be integer in range from -100 to -10");
         cJSON_Delete(root);
         return ESP_FAIL;
     }
