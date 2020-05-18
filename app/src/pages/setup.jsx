@@ -136,7 +136,6 @@ export default class extends React.Component {
             }).then(connectSuccess(result.address), error => {
               state.log(error);
               state.log("138");
-              bluetoothle.reconnect(succ => {connectSuccess(address)}, error => {state.log("139"); state.log(error); state.handle_error(error)}, { address: result.address });
             });
         }
       }
@@ -166,7 +165,8 @@ export default class extends React.Component {
       }).then(succ => {
         state.setState({popupOpened : false})
         var arr = bluetoothle.encodedStringToBytes(succ.value);
-        this.props.f7router.app.toast.show({
+        state.props.f7router.app.preloader.hide();
+        state.props.f7router.app.toast.show({
           text: 'Main unit was found and IP address was stored.',
           closeTimeout: 2000,
         })

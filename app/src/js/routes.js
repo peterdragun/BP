@@ -9,7 +9,7 @@ import SetupPage from '../pages/setup.jsx';
 import NotFoundPage from '../pages/404.jsx';
 import axios from 'axios'
 
-function removeDuplicates(keyFn, array){
+function removeDuplicates(array){
   var trimmedArray = [];
   var values = [];
   var value;
@@ -61,7 +61,7 @@ var routes = [
           timeout: 8000
         }).then(response => {
           console.log(response);
-          var array = removeDuplicates(x => x.address, response.data);
+          var array = removeDuplicates(response.data);
           this.app.preloader.hide();
           resolve(
             {
@@ -107,7 +107,8 @@ var routes = [
           },
           {
             context: {
-              list: {result: [], rssi: "N/A"},
+              list: {result: []},
+              distance: "N/A",
               message: "Please click on 'Find main unit' button on Setup page",
               errorPopup: true,
             }
@@ -127,7 +128,8 @@ var routes = [
             },
             {
               context: {
-                list: {result: response.data.list, rssi: response.data.rssi},
+                list: {result: response.data.list},
+                distance: response.data.distance,
                 message: "",
                 errorPopup: false,
               }
@@ -142,7 +144,8 @@ var routes = [
             },
             {
               context: {
-                list: {result: [], rssi: "N/A"},
+                list: {result: []},
+                distance: "N/A",
                 message: error.message,
                 errorPopup: true,
               }
