@@ -1,6 +1,13 @@
+/**
+* @file  rest_server.c
+*
+* @brief Api restful server handlers
+* @author Peter Dragun (xdragu01)
+*/
+
 #include "rest_server.h"
 
-uint8_t new_address[6] = {};
+uint8_t new_address[6] = {}; /*!< Address of new BLE device to be added on whitelist*/
 
 static esp_err_t check_state(httpd_req_t *req){
     if (*security_state != Setup){
@@ -484,6 +491,7 @@ static esp_err_t status_get_handler(httpd_req_t *req){
     return ESP_OK;
 }
 
+// allow CORS for all requests
 static esp_err_t default_options_handler(httpd_req_t *req){
     ESP_LOGI(REST_TAG, "Options req received");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");

@@ -23,10 +23,10 @@
 #include "esp_main.h"
 #include "sensors.h"
 
-#define SCRATCH_BUFSIZE (10240)
+#define SCRATCH_BUFSIZE (10240) /*!< Size of buffer */
 
-#define REST_TAG "REST"
-#define SECURITY_SYSTEM "SECURITY_SYSTEM"
+#define REST_TAG "REST" /*!< Tag for logging */
+#define SECURITY_SYSTEM "SECURITY_SYSTEM" /*!< Tag for logging */
 #define REST_CHECK(a, str, goto_tag, ...)                                              \
     do                                                                                 \
     {                                                                                  \
@@ -35,10 +35,10 @@
             ESP_LOGE(REST_TAG, "%s(%d): " str, __FUNCTION__, __LINE__, ##__VA_ARGS__); \
             goto goto_tag;                                                             \
         }                                                                              \
-    } while (0)
+    } while (0) /*!< Check for errors. If error jump to end of inicialization. */
 
-#define RSSI_AT_1_METER 9 - 62 // +9dbm is tx
-#define ENV_FACTOR 4
+#define RSSI_AT_1_METER 9 - 62 /*!< Value of RSSI on one meter. +9dbm is current tx power. */
+#define ENV_FACTOR      4 /*!< Environment constant. Used in distance to RSSI calculation */
 
 // global variables
 extern state_enum_t *security_state;
@@ -55,10 +55,10 @@ extern int8_t rssi;
  * @brief Context of request
  */
 typedef struct rest_server_context {
-    char scratch[SCRATCH_BUFSIZE];
+    char scratch[SCRATCH_BUFSIZE]; /**< Scratch*/
 } rest_server_context_t;
 
-cJSON *json_resp; // BLE scan results
+cJSON *json_resp; /*!< BLE scan results */
 
 /**
  * @brief Initialize structures for REST API server

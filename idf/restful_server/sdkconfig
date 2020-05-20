@@ -120,12 +120,6 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
-# Home security configuration
-#
-CONFIG_MDNS_HOST_NAME="esp-home"
-# end of Home security configuration
-
-#
 # Example Connection Configuration
 #
 CONFIG_EXAMPLE_CONNECT_WIFI=y

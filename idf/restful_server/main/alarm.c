@@ -1,48 +1,49 @@
 #include "alarm.h"
 
-state_enum_t security = Disarmed;
-state_enum_t *security_state = &security;
-time_t last_alarm = 0;
+static state_enum_t security = Disarmed;
+state_enum_t *security_state = &security; /*!< Current state of security system */
+time_t last_alarm = 0; /*!< Timestamp of last alarm */
 
-int keypad_col = 0;
+static int keypad_col = 0;
 
-char entered_code[19] = {0};
-char expected_code[19] = "123456"; //Default alarm code
-int wrong_attempts = 0;
-int *wrong_attempts_ptr = &wrong_attempts;
+char entered_code[19] = {0}; /*!< Buffer for entered code*/
+char expected_code[19] = "123456"; /*!< Expected code. Set to default code. */
+static int wrong_attempts = 0;
+int *wrong_attempts_ptr = &wrong_attempts; /*!< Number of wrong codes */
 
 int not_responding(); // defined in sensors.h
 
+/*! LEDC channels */
 ledc_channel_config_t ledc_channel[LEDC_CH_NUM] = {
     {
-        .channel    = LEDC_HS_CH0_CHANNEL,
+        .channel    = LEDC_CHANNEL_0,
         .duty       = 0,
         .gpio_num   = LEDC_HS_CH0_BUZZER,
         .speed_mode = LEDC_HS_MODE,
         .hpoint     = 0,
-        .timer_sel  = LEDC_HS_TIMER
+        .timer_sel  = LEDC_TIMER_0
     },
     {
-        .channel    = LEDC_HS_CH1_CHANNEL,
+        .channel    = LEDC_CHANNEL_1,
         .duty       = 0,
         .gpio_num   = LEDC_HS_CH1_LED_R,
         .speed_mode = LEDC_HS_MODE,
         .hpoint     = 0,
-        .timer_sel  = LEDC_HS_TIMER
+        .timer_sel  = LEDC_TIMER_0
     },
     {
-        .channel    = LEDC_HS_CH2_CHANNEL,
+        .channel    = LEDC_CHANNEL_2,
         .duty       = 0,
         .gpio_num   = LEDC_HS_CH2_LED_Y,
         .speed_mode = LEDC_HS_MODE,
         .hpoint     = 0,
-        .timer_sel  = LEDC_HS_TIMER
+        .timer_sel  = LEDC_TIMER_0
     },
 };
 
-TaskHandle_t xHandle_alarm;
-TaskHandle_t xHandle_activate;
-TaskHandle_t xHandle_search;
+TaskHandle_t xHandle_alarm; /*!< Task handle for alarm */
+TaskHandle_t xHandle_activate; /*!< Task handle for activating */
+TaskHandle_t xHandle_search; /*!< Task handle for searching near devices */
 
 char *state_to_str(){
     char *state;

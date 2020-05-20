@@ -1,7 +1,7 @@
 /**
 * @file  esp_main.h
 *
-* @brief BLE
+* @brief Main part of program and BLE communication
 * @author Peter Dragun (xdragu01)
 */
 
@@ -31,36 +31,30 @@
 #include "sensors.h"
 
 // BLE
-#define GATTS_NUM_HANDLE            4
-#define GATTS_NUM_HANDLE_C          6
+#define GATTS_NUM_HANDLE            4 /*!< Default number of handle requested*/
+#define GATTS_NUM_HANDLE_SETUP      6 /*!< Number of handle requested for setup sevice*/
 
-#define GATTS_DEMO_CHAR_VAL_LEN_MAX 0x40
-#define PREPARE_BUF_MAX_SIZE        1024
+#define adv_config_flag             (1 << 0) /*!< Advetising config flag*/
+#define scan_rsp_config_flag        (1 << 1) /*!< Scan response config flag*/
 
-#define adv_config_flag             (1 << 0)
-#define scan_rsp_config_flag        (1 << 1)
+#define GATTS_PROFILE_NUM           3 /*!< Number of GATTS services*/
+#define GATTS_PROFILE_STATUS        0 /*!< Status service index*/
+#define GATTS_PROFILE_SENSOR        1 /*!< Sensor service index*/
+#define GATTS_PROFILE_SETUP         2 /*!< Setup service index*/
+#define GATTC_PROFILE_NUM           1 /*!< Number of client profiles */
+#define GATTC_PROFILE               0 /*!< Client profile index*/
 
-#define GATTS_PROFILE_NUM           3
-#define GATTS_PROFILE_STATUS        0
-#define GATTS_PROFILE_SENSOR        1
-#define GATTS_PROFILE_SETUP         2
-#define GATTC_PROFILE_NUM           1
-#define GATTC_PROFILE               0
+#define BLE_SECURITY_SYSTEM         "BLE_SECURITY_SYSTEM" /*!< Tag for logging */
+#define REMOTE_SERVICE_UUID         0x1800 /*!< Generic Access UUID */
+#define REMOTE_NOTIFY_UUID          0x2A37 /*!< */
+#define REMOTE_NOTIFY_CHAR_UUID     0x2A00 /*!< Device name UUID */
+#define GATTS_ADV_NAME              "ESP_main_unit" /*!< Advertising name */
 
-#define BLE_SECURITY_SYSTEM         "BLE_SECURITY_SYSTEM"
-#define REMOTE_SERVICE_UUID         0x1800 // Generic Access
-#define REMOTE_NOTIFY_UUID          0x2A37
-#define REMOTE_NOTIFY_CHAR_UUID     0x2A00 // Device name
-#define NOTIFY_ENABLE               0x0001
-#define INDICATE_ENABLE             0x0002
-#define NOTIFY_INDICATE_DISABLE     0x0000
-#define GATTS_ADV_NAME              "ESP_main_unit"
+#define PROFILE_NUM                 1 /*!< Number of client profiles*/
+#define PROFILE_A_APP_ID            0 /*!< Index of client profile*/
+#define INVALID_HANDLE              0 /*!< Invalid client handle*/
 
-#define PROFILE_NUM                 1
-#define PROFILE_A_APP_ID            0
-#define INVALID_HANDLE              0
-
-#define NUMBER_OF_UUIDS             3
+#define NUMBER_OF_UUIDS             3 /*!< Number of services */
 
 // global variables
 extern ledc_channel_config_t ledc_channel[LEDC_CH_NUM];
@@ -78,43 +72,35 @@ extern const char sensors_nvs_key[5][3];
 extern time_t last_alarm;
 
 /**
- * @brief 
- */
-typedef struct {
-    uint8_t *prepare_buf;
-    int prepare_len;
-} prepare_type_env_t;
-
-/**
  * @brief Instance of server profile
  */
 struct gatts_profile_inst {
-    esp_gatts_cb_t gatts_cb;
-    uint16_t gatts_if;
-    uint16_t app_id;
-    uint16_t conn_id;
-    uint16_t service_handle;
-    esp_gatt_srvc_id_t service_id;
-    uint16_t char_handle;
-    esp_bt_uuid_t char_uuid;
-    esp_gatt_perm_t perm;
-    esp_gatt_char_prop_t property;
-    uint16_t descr_handle;
-    esp_bt_uuid_t descr_uuid;
+    esp_gatts_cb_t gatts_cb;        /**< GATTS callback function*/
+    uint16_t gatts_if;              /**< GATTS interface*/
+    uint16_t app_id;                /**< Application ID*/
+    uint16_t conn_id;               /**< Connection ID*/
+    uint16_t service_handle;        /**< Service handle*/
+    esp_gatt_srvc_id_t service_id;  /**< Service UUID*/
+    uint16_t char_handle;           /**< Characteristic handle*/
+    esp_bt_uuid_t char_uuid;        /**< Characteristic UUID*/
+    esp_gatt_perm_t perm;           /**< Permissions*/
+    esp_gatt_char_prop_t property;  /**< Characteristics property*/
+    uint16_t descr_handle;          /**< Descriptor handle*/
+    esp_bt_uuid_t descr_uuid;       /**< Descriptor UUID*/
 };
 
 /**
  * @brief Instance of client profile
  */
 struct gattc_profile_inst {
-    esp_gattc_cb_t gattc_cb;
-    uint16_t gattc_if;
-    uint16_t app_id;
-    uint16_t conn_id;
-    uint16_t service_start_handle;
-    uint16_t service_end_handle;
-    uint16_t notify_char_handle;
-    esp_bd_addr_t remote_bda;
+    esp_gattc_cb_t gattc_cb;        /**< GATTC callback function*/
+    uint16_t gattc_if;              /**< GATTC interface*/
+    uint16_t app_id;                /**< Application ID*/
+    uint16_t conn_id;               /**< Connection ID*/
+    uint16_t service_start_handle;  /**< Service start handle*/
+    uint16_t service_end_handle;    /**< Service end handle*/
+    uint16_t char_handle;           /**< Characteristics handle*/
+    esp_bd_addr_t remote_bda;       /**< Remote bluetooth address*/
 };
 
 /**

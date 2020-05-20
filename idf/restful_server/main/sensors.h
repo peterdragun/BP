@@ -19,13 +19,13 @@
 
 #include "alarm.h"
 
-#define MAX_NUMBER_OF_SENSORS 5
+#define MAX_NUMBER_OF_SENSORS   9 /*!< Maximum number of supported sensors */
 
-#define SENSORS_TAG "sensors"
+#define SENSORS_TAG             "SENSORS" /*!< Logging tag */
 
-#define DISARMED_WAIT 40
-#define ARMED_WAIT 20
-#define REPEAT_WAIT 20
+#define DISARMED_WAIT           40 /*!< Wait time for sensors in disarmed mode */
+#define ARMED_WAIT              20 /*!< Wait time for sensors in armed mode */
+#define REPEAT_WAIT             20 /*!< Wait time for sensors after not successfull connection */
 
 extern state_enum_t *security_state;
 extern time_t last_alarm;

@@ -1,3 +1,10 @@
+/**
+* @file  sensor_unit.c
+*
+* @brief Program for sensor unit
+* @author Peter Dragun (xdragu01)
+*/
+
 #include <string.h>
 #include <sys/time.h>
 
@@ -13,6 +20,7 @@
 #include "esp_bt_main.h"
 #include "esp_gatt_common_api.h"
 
+/*! Wake up value of ESP32 */
 #ifdef CONFIG_DOOR_SENSOR
     #define WAKE_UP ESP_EXT1_WAKEUP_ALL_LOW
 #else
@@ -21,15 +29,21 @@
 
 static RTC_DATA_ATTR struct timeval sleep_enter_time;
 
-#define GATTC_TAG             "BLE_SENSOR"
-#define INPUT_PIN             32
-#define LED_PIN               19
-#define SLEEP_ARMED           40 // seconds
-#define SLEEP_DISARMED        20 // seconds
-#define ALARM_RETRY           20 // seconds
+#define GATTC_TAG             "BLE_SENSOR" /*!< Tag for logging*/
+#define INPUT_PIN             32 /*!< Sensor input pin*/
+#define LED_PIN               19 /*!< Led pin*/
+#define SLEEP_ARMED           40 /*!< Sleep time in seconds for armed mode*/
+#define SLEEP_DISARMED        20 /*!< Sleep time in seconds for disarmed mode*/
+#define ALARM_RETRY           20 /*!< Sleep time in seconds for retry mode*/
 
+/*! Report service UUID. Sensor report alarm and type to this service */
 #define REPORT_SERVICE_UUID {0xae, 0x28, 0x74, 0xca, 0xad, 0xa5, 0x86, 0xac, 0x9b, 0x46, 0x84, 0x39, 0x1e, 0x37, 0x4a, 0x53}
+/*! Status service UUID. Get current state of system */
 #define STATUS_SERVICE_UUID {0x89, 0x38, 0xc2, 0xef, 0x89, 0x67, 0x41, 0xaf, 0xae, 0x4d, 0xaa, 0xfe, 0x6d, 0xb3, 0xdb, 0x56}
+
+#define PROFILE_NUM      1 /*!< Number client of profiles */
+#define PROFILE_A_APP_ID 0 /*!< Index of client profile*/
+#define INVALID_HANDLE   0 /*!< Invalid client handle*/
 
 static uint8_t report_service_uuid[] = REPORT_SERVICE_UUID;
 static uint8_t status_service_uuid[] = STATUS_SERVICE_UUID;
@@ -54,27 +68,22 @@ static esp_bt_uuid_t remote_filter_status_service_uuid = {
 
 static bool connect = false;
 static bool get_service = false;
-static const char remote_device_name[] = "ESP_main_unit";
+static const char remote_device_name[] = "ESP_main_unit"; // name of main unit
 
-RTC_DATA_ATTR uint8_t alarm = 0;
-uint8_t *alarm_ptr = &alarm;
-uint8_t security_state = 0;
-uint8_t write_type = 0;
-uint8_t *security_state_ptr = &security_state;
+RTC_DATA_ATTR uint8_t alarm = 0; /*!< Alarm value. Stored in RTC memory*/
+uint8_t *alarm_ptr = &alarm; /*!< Pointer to alarm value*/
+uint8_t security_state = 0; /*!< State of system*/
+uint8_t *security_state_ptr = &security_state; /*!< Pointer to state of system*/
+uint8_t write_type = 0; /*!< Type of write. 0 for alarm, 1 for type (unknown sensor)*/
 
 static esp_ble_scan_params_t ble_scan_params = {
     .scan_type              = BLE_SCAN_TYPE_ACTIVE,
-    .own_addr_type          = BLE_ADDR_TYPE_PUBLIC,// BLE_ADDR_TYPE_RANDOM,
+    .own_addr_type          = BLE_ADDR_TYPE_PUBLIC,
     .scan_filter_policy     = BLE_SCAN_FILTER_ALLOW_ALL,
     .scan_interval          = 0x50,
     .scan_window            = 0x30,
     .scan_duplicate         = BLE_SCAN_DUPLICATE_DISABLE
 };
-
-
-#define PROFILE_NUM 1
-#define PROFILE_A_APP_ID 0
-#define INVALID_HANDLE   0
 
 struct gattc_profile_inst {
     esp_gattc_cb_t gattc_cb;
@@ -95,6 +104,9 @@ static struct gattc_profile_inst gl_profile_tab[PROFILE_NUM] = {
     },
 };
 
+/**
+ * @brief Setup deep sleep wake up timer based od sensor state. Enter deep sleep.
+ */
 void deep_sleep(){
     int wakeup_time_sec = SLEEP_ARMED;
     if (*alarm_ptr != 0){
@@ -118,8 +130,7 @@ void deep_sleep(){
     esp_deep_sleep_start();
 }
 
-static const char *esp_key_type_to_str(esp_ble_key_type_t key_type)
-{
+static const char *esp_key_type_to_str(esp_ble_key_type_t key_type){
    const char *key_str = NULL;
    switch(key_type) {
     case ESP_LE_KEY_NONE:
@@ -157,8 +168,7 @@ static const char *esp_key_type_to_str(esp_ble_key_type_t key_type)
      return key_str;
 }
 
-static char *esp_auth_req_to_str(esp_ble_auth_req_t auth_req)
-{
+static char *esp_auth_req_to_str(esp_ble_auth_req_t auth_req){
    char *auth_str = NULL;
    switch(auth_req) {
     case ESP_LE_AUTH_NO_BOND:
@@ -193,6 +203,7 @@ static char *esp_auth_req_to_str(esp_ble_auth_req_t auth_req)
    return auth_str;
 }
 
+// compare two 128 bit uuids
 static esp_err_t compare_uuids(uint8_t *uuid1, uint8_t *uuid2){
     if(sizeof(uuid1) != sizeof(uuid2)){
         return ESP_FAIL;
@@ -205,8 +216,7 @@ static esp_err_t compare_uuids(uint8_t *uuid1, uint8_t *uuid2){
     return ESP_OK;
 }
 
-static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param)
-{
+static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param){
     esp_ble_gattc_cb_param_t *p_data = (esp_ble_gattc_cb_param_t *)param;
 
     switch (event) {
@@ -389,8 +399,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
     }
 }
 
-static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
-{
+static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param){
     uint8_t *adv_name = NULL;
     uint8_t adv_name_len = 0;
     switch (event) {
@@ -513,8 +522,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
     }
 }
 
-static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param)
-{
+static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param){
     ESP_LOGI(GATTC_TAG, "EVT %d, gattc if %d", event, gattc_if);
 
     /* If event is register event, store the gattc_if for each profile */
@@ -544,8 +552,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp
     } while (0);
 }
 
-void app_main(void)
-{
+void app_main(void){
     // Initialize NVS.
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {

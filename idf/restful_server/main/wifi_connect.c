@@ -1,3 +1,19 @@
+/**
+* @file  wifi_connect.c
+*
+* @brief Handles wifi connections
+* @author Peter Dragun (xdragu01), Espressif
+* 
+* Modified. Original source code: https://github.com/espressif/esp-idf/blob/master/examples/common_components/protocol_examples_common/connect.c    
+*/
+
+/* Common functions for protocol examples, to establish Wi-Fi or Ethernet connection.
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 #include "wifi_connect.h"
 
 static esp_ip6_addr_t s_ipv6_addr;
@@ -15,8 +31,8 @@ static const char *s_ipv6_addr_types[] = {
 static EventGroupHandle_t s_connect_event_group;
 static esp_netif_t *s_example_esp_netif = NULL;
 static const char *s_connection_name;
-esp_ip4_addr_t s_ip_addr;
-int retry = 0;
+esp_ip4_addr_t s_ip_addr; /*!< IP address of main unit */
+int retry = 0; /*!< Number of retries. After 3 reconnections end. */
 
 static void stop(void);
 
@@ -26,6 +42,7 @@ static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
     retry++;
     ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...(%d/3)", retry);
     if (retry == 3){
+        // stop reconnectin after 3 tries
         esp_wifi_stop();
         return;
     }

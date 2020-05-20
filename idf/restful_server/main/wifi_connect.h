@@ -1,7 +1,7 @@
 /**
 * @file  wifi_connect.h
 *
-* @brief Handlers wifi connections
+* @brief Handles wifi connections
 * @author Peter Dragun (xdragu01)
 */
 
@@ -16,7 +16,7 @@
 #include "esp_wifi_default.h"
 #include "esp_wifi.h"
 
-#define TAG "wifi"
+#define TAG "wifi" /*!< Logging tag */
 #define GOT_IPV4_BIT BIT(0)
 #define GOT_IPV6_BIT BIT(1)
 
