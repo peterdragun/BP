@@ -151,7 +151,7 @@ export default class extends React.Component {
           if(state.state.ssid){
             writeWifi(address);
           }else{
-            state.handle_error("SSID should not be empty!");
+            state.handle_error({message: "SSID should not be empty!"});
           }
         }
         }, error => {error.message = error.message + ". Please try again.", state.handle_error(error)});
@@ -175,7 +175,7 @@ export default class extends React.Component {
         }
         localStorage.ip = ip.substr(1);
         state.log(localStorage.ip)
-        BleClose();
+        BleClose(address);
         state.props.f7router.app.views.main.router.navigate("/");
 
       }, error => state.handle_error(error));
@@ -209,6 +209,7 @@ export default class extends React.Component {
         bluetoothle.write(resolve, reject, params);
       }).then(succ => {
         state.log(succ);
+        bluetoothle.close(response => state.log(response), error => state.log(error), { address: address});
         localStorage.removeItem("ip");
         state.props.f7router.app.preloader.hide();
         state.setState({ popupTitle: "Success", popupOpened : true, password: "", ssid: "",
@@ -216,7 +217,7 @@ export default class extends React.Component {
       }, error => state.handle_error(error));
     }
 
-    async function BleClose() {
+    async function BleClose(address) {
       bluetoothle.close(success => {state.log(success)},error => {state.handle_error(error)},{ address: address })
       state.props.f7router.app.preloader.hide();
       state.props.f7router.app.views.main.router.navigate("/");
