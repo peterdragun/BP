@@ -31,7 +31,7 @@ static RTC_DATA_ATTR struct timeval sleep_enter_time;
 
 #define GATTC_TAG             "BLE_SENSOR" /*!< Tag for logging*/
 #define INPUT_PIN             32 /*!< Sensor input pin*/
-#define LED_PIN               19 /*!< Led pin*/
+#define LED_PIN               33 /*!< Led pin*/
 #define SLEEP_ARMED           40 /*!< Sleep time in seconds for armed mode*/
 #define SLEEP_DISARMED        20 /*!< Sleep time in seconds for disarmed mode*/
 #define ALARM_RETRY           20 /*!< Sleep time in seconds for retry mode*/
