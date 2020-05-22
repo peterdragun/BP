@@ -84,7 +84,7 @@ export default class extends React.Component {
   async setupBLE(read){
     var state = this;
     console.log(this);
-    cordova.plugins.diagnostic.requestLocationAuthorization(status => {console.error(status)}, error => {console.error(error)});
+    cordova.plugins.diagnostic.requestLocationAuthorization(status => {console.error(status)}, error => {handle_error(error); return;});
     cordova.plugins.diagnostic.hasBluetoothLESupport(function(supported){
       console.log("Bluetooth LE is " + (supported ? "supported" : "unsupported"));
     }, error => {this.handle_error(error)});
@@ -135,7 +135,6 @@ export default class extends React.Component {
               bluetoothle.connect(resolve, reject, { address: result.address });
             }).then(connectSuccess(result.address), error => {
               state.log(error);
-              state.log("138");
             });
         }
       }
@@ -211,6 +210,7 @@ export default class extends React.Component {
       }).then(succ => {
         state.log(succ);
         localStorage.removeItem("ip");
+        state.props.f7router.app.preloader.hide();
         state.setState({ popupTitle: "Success", popupOpened : true, password: "", ssid: "",
           message: "Wifi credentials was sucessfully stored. Wait for long beep and then press 'Find main unit'" })
       }, error => state.handle_error(error));
