@@ -118,11 +118,10 @@ export default class Home extends React.Component {
     },
     error => {
       console.error(error);
-      var message = "Timeout"
-      if (error.response){
-        message = error.response.data
-      }
-      this.setState({ popupTitle: "Error", popupOpened : true, message: message, refresh: false })
+      this.props.f7router.app.toast.show({
+        text: "Error occured while reloading page. Main unit is not available.",
+        closeTimeout: 2000,
+      })
     });
   }
   handleClick () {
