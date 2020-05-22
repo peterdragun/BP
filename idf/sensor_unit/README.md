@@ -13,8 +13,8 @@ Choose `Sensor configuration` and set value of `Select type of sensor`. Currentl
 ## Pin Assignment:
 
 
-| ESP32  | Device       |
-| ------ | ------------ |
-| GPIO32 | Sensor       |
-| GPIO19 | Alarm LED R  |
+| ESP32  | Device      |
+| ------ | ----------- |
+| GPIO32 | Sensor      |
+| GPIO33 | Alarm LED   |
 
