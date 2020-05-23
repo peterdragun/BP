@@ -1,13 +1,5 @@
 # Home security
 
-## For future me
-If you want to send ajax req from android phone you need to add `android:usesCleartextTraffic="true"`
-in `cordova/platforms/android/app/src/main/AndroidManifest.xml` as `application` property.
-
-You are welcome :).
-
-Maybe I should add how to remove gradle and android home issues in building. Maybe next time, when I will spend again 3 hours finding solution on google :). 
-
 ## Framework7 CLI Options
 
 Framework7 app created with following options:
