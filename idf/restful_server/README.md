@@ -16,6 +16,8 @@
 | GPIO25 | Keypad row 2 |
 | GPIO33 | Keypad row 3 |
 
+![schema](doska_main.png)
+
 
 ## API 
 

@@ -18,3 +18,5 @@ Choose `Sensor configuration` and set value of `Select type of sensor`. Currentl
 | GPIO32 | Sensor      |
 | GPIO33 | Alarm LED   |
 
+![schema_PIR](doska_PIR.png)
+![schema_door](doska_door.png)
