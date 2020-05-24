@@ -11,9 +11,13 @@ uint8_t new_address[6] = {}; /*!< Address of new BLE device to be added on white
 
 static esp_err_t check_state(httpd_req_t *req){
     if (*security_state != Setup){
-        char * err_msg = "Security system needs to be in setup mode for this operation.";
+        char *status = "403 Forbidden";
+        char *err_msg = "Security system needs to be in setup mode for this operation.";
         ESP_LOGW(SECURITY_SYSTEM, "%s", err_msg);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, err_msg);
+        httpd_resp_set_status(req, status);
+        httpd_resp_set_type(req, HTTPD_TYPE_TEXT);
+        // httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, err_msg);
+        httpd_resp_send(req, err_msg, strlen(err_msg));
         return ESP_FAIL;
     }
     return ESP_OK;
