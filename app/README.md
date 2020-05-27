@@ -1,5 +1,38 @@
 # Home security
 
+## Instalation
+
+Requirements:
+
+```
+gradle
+Java Development Kit (JDK) 8
+Android SDK (Android studio)
+```
+
+Setting environment variables:
+
+1. Set the `JAVA_HOME` environment variable to the location of your JDK installation
+2. Set the `ANDROID_HOME` environment variable to the location of your Android SDK installation
+3. It is also recommended that you add the Android SDK's `tools`, `tools/bin`, and `platform-tools` directories to your `PATH`
+
+Install npm modules:
+
+`npm install`
+
+
+## Create application
+
+Android:
+
+`npm run build-prod-cordova-android`
+
+or just run in local browser (Android studio, JDK and gradle are not required in this option):
+
+`npm run dev`
+
+Note that Bluetooth won't work in local browser.
+
 ## Framework7 CLI Options
 
 Framework7 app created with following options:
