@@ -5,7 +5,7 @@ V~súčasnosti je čoraz častejšie zabezpečovať si svoj dom alebo byt aj in�
 Cieľom práce je vytvoriť zabezpečovacie zariadenie, ktoré pomocou Bluetooth dokáže detekovať prítomnosť majiteľa~-~jeho telefónu, hodiniek a podobne. Použitie Bluetooth je vhodné hlavne vďaka množstvu zariadení, ktoré ho podporujú. Ide hlavne o~nositeľné zariadenia a zariadenia, ktoré majú ľudia stále pri sebe.
 Súčasťou práce bude zároveň aj vytvorenie mobilnej aplikácie, ktorá bude slúžiť na nastavenie systému a jeho správu. Podporovať by mala najrozšírenejšie mobilné operačné systémy ako Android a iOS.
 
-Prvá časť práce sa venuje prieskumu a definovaniu rôznych technológií využívaných v~navrhovanom prototype. V~kapitole \ref{chap:ZS} sa zameriavam na definovanie rôznych typov zabezpečovania a využívaných prostriedkov. V~ďalšej kapitole je opísaný Bluetooth Low Energy a spôsob komunikácie. Nasleduje popis mikrokontroléra použitého v~systéme - ESP32.
+Prvá časť práce sa venuje prieskumu a definovaniu rôznych technológií využívaných v~navrhovanom prototype. V~kapitole \ref{chap:ZS} sa zameriavam na definovanie rôznych typov zabezpečovania a využívaných prostriedkov. V~ďalšej kapitole je opísaný Bluetooth Low Energy a spôsob komunikácie. Nasleduje popis mikrokontroléra použitého v~systéme - ESP32. 
 
 V~druhej časti práce sa venujem samotnému návrhu a implementácii zabezpečovacieho systému a spôsobu jeho nastavenia. Nasleduje zhrnutie vlastností navrhovaného systému a zamyslenie sa nad možnými rozšírenia tohoto systému.
 
@@ -31,7 +31,7 @@ Elektronický zabezpečovací systém je poplachový systém pre detekciu a indi
     \label{tab:stupenzabezpecenia}
 \end{table}
 
-Klasické zabezpečovacie systémy používané v~domácnostiach spadajú do stupňa zabezpečenia 1 až 2, teda nízke až stredné zabezpečenie. Existujú však aj systémy vyššieho stupňa aj pre domácnosti, ide však o~nákladnejšie systémy.
+Klasické zabezpečovacie systémy používané v~domácnostiach spadajú do stupňa zabezpečenia 1 až 2, teda nízke až stredné zabezpečenie. Existujú však systémy vyššieho stupňa aj pre domácnosti, ide však o~nákladnejšie systémy.
 
 Elektronické zabezpečovacie systémy sa vo všeobecnosti skladajú z~rôznych prvkov. Sem patria prvky:\cite{velas_ezs}
 \begin{itemize}
@@ -81,7 +81,7 @@ Keďže EZS musí fungovať aj v~prípade výpadku elektrickej energie, musí by
 
 Podľa reakcie ústredne na výstupný signál z~detektoru rozlišujeme rôzne typy slučiek, resp. zón. Medzi základné radíme:
 \begin{itemize}
-    \item \textbf{okamžitá slučka} - v~pohotovostnom režime ústredňa nereaguje, v~režime stráženia spôsobuje okamžite vyhlásenie poplachu. Do slučky sa pridávajú detektory kde sa nepredpokladá pohyb užívateľov počas ochrany objektu.
+    \item \textbf{okamžitá slučka} - v~pohotovostnom režime ústredňa nereaguje, v~režime stráženia spôsobuje okamžite vyhlásenie poplachu. Do slučky sa pridávajú detektory, kde sa nepredpokladá pohyb užívateľov počas ochrany objektu.
     \item \textbf{oneskorená slučka} - v~pohotovostnom režime ústredňa nereaguje, v~režime stráženia ústredňa vyhlási poplach až po presne stanovenom čase. Do oneskorených slučiek sú zapojené senzory, ktoré sa nachádzajú pri ovládacích prvkoch EZS (pri vstupe do objektu).
     \item \textbf{trvalá slučka} - ústredňa reaguje na narušenie okamžitým poplachom v~stave stráženia aj v~pohotovostnom režime.
 \end{itemize}
@@ -106,10 +106,10 @@ Je určený na stráženie stavebných otvorov ako sú okná, dvere, rolety a po
 
 Keďže najjednoduchším spôsobom ako preniknúť do stráženého objektu je práve cez rozbité okno je dôležité myslieť na ich ochranu. Existuje hneď niekoľko spôsobov ako detekovať rozbitie skla:
 \begin{itemize}
-    \item \textit{poplachové fólie} - pracujú na princípe vodivých pásikov alebo plôch zaliatych vo vnútri fólie. Poplach je vyvolaný prerušením vodivého pásika. Nalepujú sa na sklenené výplne dverí, okien a výkladov.
-    \item \textit{kontaktné snímače} - pracujú na princípe uzavretého elektrického obvodu. Rozbitím skla sa naruší a vyvolá tak poplach. Nedostatkom je nízka odolnosť voči vyrazeniu skla.
-    \item \textit{piezoelektrické snímače} - vyhodnocujú otrasy na skle, ktoré vznikajú pri rozbití, rezaní skla. Umiestňujú sa do rohu skla a majú dosah 1,5 až 3 m.
-    \item \textit{akustické detektory rozbitia skla} - detekujú zvuk rozbitia skla pomocou mikrofónu. Majú dosah až 10 m od stráženého skla. Sú náchylnejšie na falošné poplachy, ktoré môže vyvolať zvoniaci telefón, rozbitie skla vonku či brzdenie električky.
+    \item \textbf{poplachové fólie} - pracujú na princípe vodivých pásikov alebo plôch zaliatych vo vnútri fólie. Poplach je vyvolaný prerušením vodivého pásika. Nalepujú sa na sklenené výplne dverí, okien a výkladov.
+    \item \textbf{kontaktné snímače} - pracujú na princípe uzavretého elektrického obvodu. Rozbitím skla sa naruší a vyvolá tak poplach. Nedostatkom je nízka odolnosť voči vyrazeniu skla.
+    \item \textbf{piezoelektrické snímače} - vyhodnocujú otrasy na skle, ktoré vznikajú pri rozbití, rezaní skla. Umiestňujú sa do rohu skla a majú dosah 1,5 až 3 m.
+    \item \textbf{akustické detektory rozbitia skla} - detekujú zvuk rozbitia skla pomocou mikrofónu. Majú dosah až 10 m od stráženého skla. Sú náchylnejšie na falošné poplachy, ktoré môže vyvolať zvoniaci telefón, rozbitie skla vonku či brzdenie električky.
 \end{itemize}
 
 \subsubsection{Pasívne infračervené detektory}\label{sec:pir}
@@ -148,6 +148,8 @@ ktorých typ závisí od použitia danej šošovky. Ich detekčné charakteristi
     \caption[Detekčná charakteristika stropného PIR senzora]{Detekčná charakteristika stropného PIR senzora\cite{PIR-strop}}
     \label{fig:pir-strop}
 \end{figure}
+
+\newpage
 
 \subsubsection{Ultrazvukové detektory}
 
@@ -274,7 +276,7 @@ Protokol definuje dve roly~-~klient a server. Zariadenie dokáže zároveň fung
 
 \subsection{Generic Attribute Profile (GATT)}\label{sec:gatt}
 
-GATT definuje hierarchickú štruktúru dát. Je postavený na Attribute profile, definuje operácie nad dátami uloženými a zasielanými pomocou neho. taktiež špecifikuje formát dát, ktoré sa nachádzajú na serveri, sú formátované ako služby (services) a charakteristiky (characteristics). Jedna služba môže obsahovať niekoľko charakteristík. Služby môžu byť aj zanorené, pričom zanorená služba existuje aj samostatne aj v~rámci nadradenej služby. Charakteristiky obsahujú jednu hodnotu, jej vlastnosti a môžu obsahovať aj niekoľko deskriptorov, ktoré opisujú hodnotu. Na obrázku \ref{fig:gatt} je možné vidieť ako by napríklad mohla vyzerať hierarchia GATT.\cite{bluetooth}
+GATT definuje hierarchickú štruktúru dát. Je postavený na Attribute profile, definuje operácie nad dátami uloženými a zasielanými pomocou neho. Taktiež špecifikuje formát dát, ktoré sa nachádzajú na serveri. Dáta sú formátované ako služby (services) a charakteristiky (characteristics). Jedna služba môže obsahovať niekoľko charakteristík. Služby môžu byť aj zanorené, pričom zanorená služba existuje aj samostatne aj v~rámci nadradenej služby. Charakteristiky obsahujú jednu hodnotu, jej vlastnosti a môžu obsahovať aj niekoľko deskriptorov, ktoré opisujú hodnotu. Na obrázku \ref{fig:gatt} je možné vidieť ako by napríklad mohla vyzerať hierarchia GATT.\cite{bluetooth}
 
 \begin{figure}[ht]
     \centering
@@ -305,7 +307,7 @@ Proces viazania (bonding) zariadení môžeme rozdeliť na 3 fázy. Tento proces
 
 \chapter{ESP32}
 
-ESP32 je populárna séria systémov na čipe (SoC - System on chip) od spoločnosti Espressif Systems, ktorá vznikla v~roku 2016. Je nasledovníkom známeho ESP2866. Ide o~výkonnejší modul, ktorý má veľa ďalších vlastností ako podporu Bluetooth, viac univerzállnych vstupno-výstupných (GPIO) pinov a podobne. V~závislosti na variante existujú rôzne výkonné modely s~rôznymi vlastnosťami.
+ESP32 je populárna séria systémov na čipe (SoC - System on chip) od spoločnosti Espressif Systems, ktorá vznikla v~roku 2016. Je nasledovníkom známeho ESP2866. Ide o~výkonnejší modul, ktorý má veľa ďalších vlastností ako podporu Bluetooth, viac univerzálnych vstupno-výstupných (GPIO) pinov a podobne. V~závislosti na variante existujú rôzne výkonné modely s~rôznymi vlastnosťami.
 Vďaka jeho pomerne nízkej cene a nízkej spotrebe je vhodný na automatizáciu domácnosti, v~IoT zariadeniach, v~medicíne, priemysle a podobne. Bol navrhnutý ako samostatne fungujúci mikrokontrolér s~ohľadom na maximálny výkon s~minimálnou spotrebou energie.
 
 \section{Architektúra}
@@ -395,13 +397,13 @@ Existuje niekoľko spôsobov ako vytvoriť aplikácie pre mobilné zariadenia. Z
 
 \section{Natívne aplikácie}
 
-Natívne aplikácie sú aplikácie vyvíjané pre konkrétnu platformu natívnym programovacím jazykom. V~prípade Androidu je to teda Java alebo Kotlin, pre iOS to sú Swift alebo Objective-C. Aplikácie môžu mať prístup k~všetkým senzorom telefónu, ku kontaktom a podobne. Takéto aplikácie sú často plynulejšie a rýchlejšie. Prinášajú však aj nevýhody v~podobe zložitejšieho programovania užívateľského rozhrania. Ďalšou nevýhodou natívnych aplikácií je že sú určené len pre jednu platformu. Aplikácia vytvorená pre iOS nie je podporovaná na zariadeniach s~Androidom a naopak.\cite{hybrid-app}
+Natívne aplikácie sú aplikácie vyvíjané pre konkrétnu platformu natívnym programovacím jazykom. V~prípade Androidu je to teda Java alebo Kotlin, pre iOS to sú Swift alebo Objective-C. Aplikácie môžu mať prístup k~všetkým senzorom telefónu, ku kontaktom a podobne. Takéto aplikácie sú často plynulejšie a rýchlejšie. Prinášajú však aj nevýhody v~podobe zložitejšieho programovania užívateľského rozhrania. Ďalšou nevýhodou natívnych aplikácií je, že sú určené len pre jednu platformu. Aplikácia vytvorená pre iOS nie je podporovaná na zariadeniach s~Androidom a naopak.\cite{hybrid-app}
 
 Existujú však aj frameworky, vďaka ktorým je možné vytvárať multiplatformové natívne aplikácie. Sem patrí napríklad Xamarin, Titanium alebo React Native. Medzi platformami sú minimálne rozdiely a je možné zdieľať až 90~\% kódu. Prispieva to tak k~šetreniu času a tým aj nákladov pri vývoji aplikácie pre obe platformy.\cite{crossplatform-app}
 
 \section{Webové aplikácie}
 
-Ide o~tradičné webové aplikácie, ktoré sú zobrazované pomocou užívateľom zvoleného prehliadača. Majú pomerne obmedzený prístup k~zdrojom zariadenia ako sú senzory a podobne. Aplikácie sa vytvárajú pomocou webových technológií ako je HTML, CSS a Javascript. Tieto technológie môžu byť rozšírené o~ďalšie knižnice a frameworky ako sú Angular, React, Vue a ďalšie. Na funkčnosť aplikácie je pri tom nevyhnutné pripojenie na internet. Vďaka konceptu progresívnych webových aplikácií (Progressive Web Applications) dokážu tieto aplikácie využívať niektoré funkcie známe z~natívnych aplikácií ako napríklad zasielanie upozornení a ďalšie. Výhodou je, že aplikácia nie je uložená priamo v~zariadení a teda nezaberá užívateľovi miesto v~pamäti. Zároveň tento spôsob ponúka okamžité aktualizácie.\cite{hybrid-app} 
+Ide o~tradičné webové aplikácie, ktoré sú zobrazované pomocou užívateľom zvoleného prehliadača. Majú pomerne obmedzený prístup k~zdrojom zariadenia ako sú senzory a podobne. Aplikácie sa vytvárajú pomocou webových technológií HTML, CSS a Javascript. Tieto technológie môžu byť rozšírené o~ďalšie knižnice a frameworky ako sú Angular, React, Vue a ďalšie. Na funkčnosť aplikácie je pri tom nevyhnutné pripojenie na internet. Vďaka konceptu progresívnych webových aplikácií (Progressive Web Applications) dokážu tieto aplikácie využívať niektoré funkcie známe z~natívnych aplikácií ako napríklad zasielanie upozornení a ďalšie. Výhodou je, že aplikácia nie je uložená priamo v~zariadení a teda nezaberá užívateľovi miesto v~pamäti. Zároveň tento spôsob ponúka okamžité aktualizácie.\cite{hybrid-app} 
 
 \section{Hybridné aplikácie}
 
@@ -443,8 +445,8 @@ Zariadenie musí byť schopné rozlišovať rôzne stavy stráženia a prepína�
 \noindent Navrhované stavy zahrňujú:
 
 \begin{itemize}
-    \item \textbf{konfigurácia} - stav určený pre konfiguráciu samotného systému. V~tomto stave je možné zmeniť kód, ktorým sa zariadenia dokáže prepnúť zo stavu zabezpečené naspäť do stavu \textit{odstrážené}. Zároveň je možné zmeniť známe zariadenia, nastavenia Wi-Fi siete a podobne. Okrem tohto stavu nie je možné meniť nastavenia systému. Systém je v~tomto stave možné meniť z~akéhokoľvek zariadenia v~lokálnej sieti. Na to aby sa systém do tohto stavu dostal je potrebné zadať správny kód na číselnej klávesnici.
-    \item \textbf{odstrážené} - režim, v~ktorom je systém pripravený kedykoľvek na prepnutie do stavu aktivácie systému. V~tomto režime sa kontrolujú pripojené senzory, nie však ich výstup, ale len ich dostupnosť. Zadaním správneho kódu je možné prepnúť ústredňu do stavu konfigurácie.
+    \item \textbf{konfigurácia} - stav určený pre konfiguráciu samotného systému. V~tomto stave je možné zmeniť kód, ktorým sa zariadenia dokáže prepnúť zo stavu \textit{zabezpečené} naspäť do stavu \textit{odstrážené}. Zároveň je možné zmeniť známe zariadenia, nastavenia Wi-Fi siete a podobne. Okrem tohto stavu nie je možné meniť nastavenia systému. Systém je v~tomto stave možné meniť z~akéhokoľvek zariadenia v~lokálnej sieti. Na to aby sa systém do tohto stavu dostal je potrebné zadať správny kód na číselnej klávesnici.
+    \item \textbf{odstrážené} - režim, v~ktorom je systém pripravený kedykoľvek na prepnutie do stavu aktivácie systému. V~tomto režime sa kontrolujú pripojené senzory, nie však ich výstup, ale len ich dostupnosť. Zadaním správneho kódu je možné prepnúť ústredňu do stavu \textit{konfigurácie}.
     \item \textbf{porucha} - nastane v~prípade nedostupnosti aspoň jedného senzoru. Systém v~tomto stave nie je možné aktivovať. Ústredňa spustí indikáciu tohto stavu upozornením, teda rozsvietením diódy. Pri opätovnej dostupnosti všetkých senzorov je stav systému automaticky zmenený na \textit{odstrážene}.
     \item \textbf{aktivácia} - prechodný stav trvajúci približne 30 sekúnd. Počas aktivácie systému ústredňa vydáva signalizáciu o~tom, že je čo najskôr nutné opustiť strážené priestory. Zároveň ústredňa oznámi senzorom tento stav a tie sa presunú do stavu \textit{zabezpečené}.
     \item \textbf{zabezpečené} - po aktivácii sa systém automaticky prepne do stavu \textit{zabezpečené}. V~tomto stave sa vyhodnocujú prijaté informácie z~jednotlivých senzorov a v~prípade, že je zaznamenané narušenie zmení sa stav na \textit{alarm}. Zároveň v~tomto režime opakovane prebieha aktívny sken okolia pre známe BLE zariadenia. V~prípade, že sa takéto zariadenia nájde a ústredňa je schopná sa k~nemu pripojiť, vykoná sa deaktivácia systému, a teda zmena stavu na \textit{odstrážené}. Druhým spôsobom prechodu do stavu \textit{odstrážené} je zadaním správneho kódu na číselnej klávesnici. V~prípade opakovaného zadania nesprávneho kódu prejde systém do stavu \textit{alarm}.
@@ -469,14 +471,14 @@ K~indikačným zariadeniam môžme zaradiť LED diódy, reproduktor alebo bzuči
 
 \subsection{Komunikácia so zariadeniami}
 
-Okrem iného sa ústredňa stará o~komunikáciu s~uloženými zariadeniami. Pre nastavenie nového zariadenia sa ústredňa pokúsi na takéto zariadenia pripojiť pomocou tzv. \texttt{bondingu}. Je vyžadované, aby zariadenie podporovalo šifrovanú komunikáciu pomocou BLE. V~prípade, že to zariadenie nepodporuje nie je možné ho pridať na zoznam známych zariadení, a teda deaktivovať EZS pomocou neho. Šifrovanie je vyžadované hlavne kvôli bezpečnosti, keďže je pomerne jednoduché skopírovať zariadenie. Zároveň sa očakáva, že zariadenie bude plniť úlohu servera v~komunikácii. Ústredňa tak dokáže identifikovať aj mobilný telefón v~prípade, že sa nachádza v~stave BLE servera.
+Okrem iného sa ústredňa stará o~komunikáciu s~uloženými zariadeniami. Pre nastavenie nového zariadenia sa ústredňa pokúsi na takéto zariadenia pripojiť pomocou tzv. \textit{bondingu}. Je vyžadované, aby zariadenie podporovalo šifrovanú komunikáciu pomocou BLE. V~prípade, že to zariadenie nepodporuje nie je možné ho pridať na zoznam známych zariadení, a teda deaktivovať EZS pomocou neho. Šifrovanie je vyžadované hlavne kvôli bezpečnosti, keďže je pomerne jednoduché skopírovať zariadenie. Zároveň sa očakáva, že zariadenie bude plniť úlohu servera v~komunikácii. Ústredňa tak dokáže identifikovať aj mobilný telefón v~prípade, že sa nachádza v~stave BLE servera.
 
 \subsection{Štruktúra BLE služieb}\label{sec:BLE_struc}
 
 Ústredňa obsahuje tri BLE služby. Tie sú rozdelené podľa ich funkcie na:
 \begin{itemize}
     \item \textbf{služba stavu systému} - pomocou tejto služby senzory zisťujú stav systému a podľa neho upravujú svoje nastavenie. Zároveň slúži aj ako overenie, že senzor je dostupný, a teda prečítal charakteristiku. Ide o~jednoduchú číselnú hodnotu z~rozsahu 0 - 2. Stavom systému sa v~tomto prípade rozumie stav stráženia (1) alebo stav pokoja (0). Ostatné stavy nie sú pre senzory dôležité. Vďaka tomu je možné aktualizovať program pre ústredňu pridaním nového stavu bez potreby zmeny programu pre senzory. V~prípade neznámeho senzoru ústredňa odpovedá hodnotou 2.
-    \item \textbf{služba alarmu} - slúži na zápis oznámenia o~narušení. Senzor zapíše nenulovú hodnotu v~prípade, že zaznamenal narušenie. V~prípade, že ide o~neznámy senzor zápis tento hodnoty slúži na definovanie typu senzoru. Typ senzoru pri tom definuje samotný senzor zápisom príslušnej hodnoty. Neznámym senzorom teda nie je možné spustiť alarm, čo slúži aj ako zabezpečenie proti neoprávnenému zápisu od narušiteľa.
+    \item \textbf{služba alarmu} - slúži na zápis oznámenia o~narušení. Senzor zapíše nenulovú hodnotu v~prípade, že zaznamenal narušenie. V~prípade, že ide o~neznámy senzor zápis tejto hodnoty slúži na definovanie typu senzoru. Typ senzoru pri tom definuje samotný senzor zápisom príslušnej hodnoty. Neznámym senzorom teda nie je možné spustiť alarm, čo slúži aj ako zabezpečenie proti neoprávnenému zápisu od narušiteľa.
     \item \textbf{služba nastavenia systému} - využíva sa na počiatočné nastavenie systému. Slúži na komunikáciu s~mobilným zariadením. Aplikácia odošle meno a heslo pre Wi-Fi sieť. Pri prečítaní systém vráti IP adresu ústredne.
 \end{itemize}
 
@@ -578,7 +580,7 @@ Klient sa najprv pripojí na server a zistí stav ústredne prečítaním hodnot
     \item v~ostatných stavoch sa jednotka so senzorom uspí na 20 minút. Zároveň sa aktivuje prebudenie jednotky pomocou senzora. V~prípade prebudenia zo senzora sa na príslušnú službu serveru zapíše oznámenie o~narušení.
 \end{itemize}
 
-Po všetkých variantách sa jednotka so senzorom uspí na stanovený čas. Pri uspávaní sa využije mód hlbokého spánku, ktorý patrí medzi najúspornejšie pričom dokáže stále prebudiť systém z~externého zdroja. Týmto externým zdrojom je v~tomto prípade čidlo, ktoré pri zaznamenaní narušenia automaticky jednotu prebudí. Po prebudení senzor znova oznámi svoju funkčnosť ústredni a zistí stav systému. Rozhodovanie sa opakuje.
+Po všetkých variantách sa jednotka so senzorom uspí na stanovený čas. Pri uspávaní sa využije mód hlbokého spánku, ktorý patrí medzi najúspornejšie pričom dokáže stále prebudiť systém z~externého zdroja. Týmto externým zdrojom je v~tomto prípade čidlo, ktoré pri zaznamenaní narušenia automaticky jednotku prebudí. Po prebudení senzor znova oznámi svoju funkčnosť ústredni a zistí stav systému. Rozhodovanie sa opakuje.
 
 Jednotlivé rozostupy medzi overeniami dostupnosti senzorov boli zvolené na základe tabuľky \ref{tab:interval_overenia}. Je dôležité zvoliť správne rozostupy pre zabezpečenie čo najčastejšej komunikácie a zároveň udržanie čo najnižšej spotreby jednotiek so senzormi. Spomínané rozostupy platia len pre pravidelnú komunikáciu, ktorou sa overuje dostupnosť senzorov. V~prípade, že senzor zaznamená narušenie, jednotka je okamžite prebudená.
 
@@ -640,7 +642,7 @@ V~prototype je senzor napájaný jednou batériou typu 18650 s~kapacitou 2600 mA
 
 \section{Mobilná aplikácia}
 
-Pre implementáciu aplikácie bol využitý Framework7 vo verzi 5.5 a React. Na programovanie bol teda z~väčšej časti využitý jazyk Typescript. Aplikácia pre komunikáciu pomocou BLE aplikácia využíva prídavný modul \textit{bluetoothle}\footnote{Dostupný z: \url{https://github.com/randdusing/cordova-plugin-bluetoothle}}. Podporuje pri tom Android od verzie 6.0, Windows 10 a iOS od verzie 8. Tento modul je využívaný na skenovanie okolitých zariadení. Hľadá sa pri tom zariadenie podľa názvu, unikátneho identifikačného čísla služby a charakteristiky. Následne sa využíva aj na samotné pripojenie, zápis a prečítanie údajov z~charakteristiky.
+Pre implementáciu aplikácie bol využitý Framework7 vo verzi 5.5 a React. Na programovanie bol teda z~väčšej časti využitý jazyk Typescript. Aplikácia pre komunikáciu pomocou BLE využíva prídavný modul \textit{bluetoothle}\footnote{Dostupný z: \url{https://github.com/randdusing/cordova-plugin-bluetoothle}}. Podporuje pri tom Android od verzie 6.0, Windows 10 a iOS od verzie 8. Tento modul je využívaný na skenovanie okolitých zariadení. Hľadá sa pri tom zariadenie podľa názvu, unikátneho identifikačného čísla služby a charakteristiky. Následne sa využíva aj na samotné pripojenie, zápis a prečítanie údajov z~charakteristiky.
 
 Samotná aplikácia je rozdelená na niekoľko obrazoviek podľa ich funkcie. Na hlavnej obrazovke sú zobrazené základne informácie o~systéme spolu s~tlačidlom pre aktiváciu systému. V~dolnej časti stránky sa nachádza aj navigácia na ďalšie stránky, prípadne tá je dostupná aj v~ľavom menu aplikácie. 
 
