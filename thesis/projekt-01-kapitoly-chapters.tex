@@ -5,7 +5,7 @@ V~súčasnosti je čoraz častejšie zabezpečovať si svoj dom alebo byt aj in�
 Cieľom práce je vytvoriť zabezpečovacie zariadenie, ktoré pomocou Bluetooth dokáže detekovať prítomnosť majiteľa~-~jeho telefónu, hodiniek a podobne. Použitie Bluetooth je vhodné hlavne vďaka množstvu zariadení, ktoré ho podporujú. Ide hlavne o~nositeľné zariadenia a zariadenia, ktoré majú ľudia stále pri sebe.
 Súčasťou práce bude zároveň aj vytvorenie mobilnej aplikácie, ktorá bude slúžiť na nastavenie systému a jeho správu. Podporovať by mala najrozšírenejšie mobilné operačné systémy ako Android a iOS.
 
-Prvá časť práce sa venuje prieskumu a definovaniu rôznych technológií využívaných v~navrhovanom prototype. V~kapitole \ref{chap:ZS} sa zameriavam na definovanie rôznych typov zabezpečovania a využívaných prostriedkov. V~ďalšej kapitole je opísaný Bluetooth Low Energy, spôsob komunikácie. Nasleduje popis mikrokontroléra použitého v~systéme - ESP32. 
+Prvá časť práce sa venuje prieskumu a definovaniu rôznych technológií využívaných v~navrhovanom prototype. V~kapitole \ref{chap:ZS} sa zameriavam na definovanie rôznych typov zabezpečovania a využívaných prostriedkov. V~ďalšej kapitole je opísaný Bluetooth Low Energy a spôsob komunikácie. Nasleduje popis mikrokontroléra použitého v~systéme - ESP32.
 
 V~druhej časti práce sa venujem samotnému návrhu a implementácii zabezpečovacieho systému a spôsobu jeho nastavenia. Nasleduje zhrnutie vlastností navrhovaného systému a zamyslenie sa nad možnými rozšírenia tohoto systému.
 
@@ -705,7 +705,7 @@ Následne je potrebné definovať jednotlivé senzory systému. Tie sa pri prvom
 Ďalším krokom by malo byť definovanie BLE zariadení, ktoré automaticky deaktivujú systém. Pri pridávaní nových zariadení prebieha sken pre okolité zariadenia. Príklad výsledku skenovania zariadení je zobrazený na obrázku \ref{fig:screen_scan}. Zariadenia, ktoré sú spárované so systémom je následne možné prehliadať a vymazávať na stránke zobrazenej na obrázku \ref{fig:screen_whitelist}. Na tejto stránke je zároveň možné zmeniť vzdialenosť, na ktorú sú zariadenia detekované.
 
 
-\section{Testovanie}
+\section{Vyhodnotenie korektnej funkčnosti}
 
 Systém bol testovaný vo vnútri v~domácom prostredí pre simulovanie podmienok, do ktorých je primárne navrhovaný. Pre účely testovania systému bolo nutné upraviť rozostupy medzi komunikáciou ústredne so senzormi. Tie boli podstatne skrátené na niekoľko desiatok sekúnd, aby bolo možné sledovať správanie systému v~prípade výpadku senzora. Nedostupnosť senzora bola testovaná priamo odpojením jeho napájania a následného sledovania reakcie ústredne. Test prebehol úspešne a ústredňa dokázala zistiť chýbajúci senzor a zároveň v~aplikácii oznámiť túto skutočnosť. Pri opätovnom zapojení senzora sa ústredňa dokázala vrátiť do pôvodného stavu. Dosah ústredne na senzory sa pri testovaní ukázal ako priemerný, ale stále postačujúci na menší byt alebo dom.
 
